@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>知识图谱</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="知识图谱">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%233b82f6'/><text x='50' y='68' text-anchor='middle' fill='white' font-size='52' font-family='sans-serif'>🧠</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#8b5cf6',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            dark: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto { content-visibility: auto; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+      .touch-target { min-height: 48px; min-width: 48px; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-dark overflow-hidden h-screen flex flex-col">
+  <!-- 顶部导航 -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex items-center justify-between z-30 shadow-sm">
+    <button id="menuBtn" class="touch-target text-gray-600 hover:text-primary">
+      <i class="fa fa-bars text-xl"></i>
+    </button>
+    <div class="flex items-center space-x-2">
+      <i class="fa fa-sitemap text-primary text-xl"></i>
+      <h1 class="text-lg font-bold">知识图谱</h1>
+    </div>
+    <button id="searchBtn" class="touch-target text-gray-600 hover:text-primary">
+      <i class="fa fa-search text-xl"></i>
+    </button>
+  </header>
+
+  <!-- 移动端搜索栏 -->
+  <div id="mobileSearch" class="absolute top-0 left-0 right-0 bg-white border-b border-gray-200 p-3 z-40 transform -translate-y-full transition-transform duration-300">
+    <div class="flex items-center space-x-2">
+      <button id="closeSearch" class="touch-target text-gray-600"><i class="fa fa-arrow-left"></i></button>
+      <div class="relative flex-1">
+        <input id="searchInput" placeholder="搜索知识节点..." class="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none">
+        <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主内容区 -->
+  <main class="flex flex-1 overflow-hidden relative">
+    <!-- 左侧边栏 -->
+    <aside id="sidebar" class="w-72 bg-white border-r border-gray-200 flex flex-col z-40 absolute top-0 left-0 h-full transform -translate-x-full transition-transform duration-300">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="font-semibold text-lg">菜单</h2>
+        <button id="closeSidebar" class="touch-target text-gray-400 hover:text-gray-600"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="flex-1 overflow-y-auto scrollbar-hide">
+        <div class="p-4 border-b border-gray-200">
+          <button id="clearAllBtn" class="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger/90 transition-all">
+            <i class="fa fa-trash"></i>
+            <span>清空所有数据</span>
+          </button>
+        </div>
+        <div class="p-4 border-b border-gray-200">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-base">导入导出</h3>
+          </div>
+          <div class="space-y-2">
+            <button id="exportDataBtn" class="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 transition-all">
+              <i class="fa fa-download"></i>
+              <span>导出数据</span>
+            </button>
+            <button id="importDataBtn" class="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-all">
+              <i class="fa fa-upload"></i>
+              <span>导入数据</span>
+            </button>
+          </div>
+        </div>
+        <div class="p-4 border-b border-gray-200">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-base">知识分类</h3>
+            <button id="addCategoryBtn" class="touch-target text-primary hover:text-primary/80"><i class="fa fa-plus text-sm"></i></button>
+          </div>
+          <div id="categoriesList" class="space-y-2"></div>
+        </div>
+        <div class="p-4 border-b border-gray-200">
+          <h3 class="font-semibold text-base mb-3">常见度说明</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center space-x-2">
+              <span class="w-4 h-4 rounded-full bg-white border-2 border-blue-200"></span>
+              <span>很少点击 (0-2次)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-4 h-4 rounded-full bg-white border-2 border-blue-400"></span>
+              <span>一般点击 (3-5次)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-4 h-4 rounded-full bg-white border-2 border-blue-600"></span>
+              <span>经常点击 (6-9次)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-4 h-4 rounded-full bg-white border-2 border-blue-900"></span>
+              <span>高频点击 (≥10次)</span>
+            </div>
+          </div>
+        </div>
+        <div class="p-4">
+          <h3 class="font-semibold text-base mb-3">最近添加</h3>
+          <div id="recentNodes" class="space-y-3"></div>
+        </div>
+      </div>
+    </aside>
+
+    <div id="overlay" class="absolute inset-0 bg-black/50 z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+    <!-- 图谱区域 -->
+    <div id="graphContainer" class="flex-1 relative bg-gray-50">
+      <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-10 text-gray-400 hidden">
+        <i class="fa fa-sitemap text-6xl mb-4 opacity-30"></i>
+        <p class="text-lg mb-2">暂无知识节点</p>
+        <p class="text-sm">点击下方"+"按钮开始添加你的第一个知识点</p>
+      </div>
+      <div class="absolute bottom-4 left-4 bg-white rounded-lg shadow-md p-3 z-10">
+        <h3 class="font-semibold text-sm mb-2">关系类型</h3>
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center space-x-2"><div class="w-6 h-0.5 bg-primary"></div><span>包含关系</span></div>
+          <div class="flex items-center space-x-2"><div class="w-6 h-0.5 bg-secondary"></div><span>前置知识</span></div>
+          <div class="flex items-center space-x-2"><div class="w-6 h-0.5 bg-success"></div><span>相关关系</span></div>
+        </div>
+      </div>
+      <svg id="knowledgeGraph" class="w-full h-full"></svg>
+    </div>
+
+    <!-- 节点详情 -->
+    <aside id="nodeDetails" class="w-full bg-white flex flex-col transform translate-x-full transition-transform duration-300 z-40 absolute top-0 right-0 h-full">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+        <button id="closeDetail" class="touch-target text-gray-600 hover:text-gray-800"><i class="fa fa-arrow-left text-xl"></i></button>
+        <h2 id="detailTitle" class="font-semibold text-lg truncate flex-1 text-center mx-4">节点详情</h2>
+        <div class="w-12"></div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-hide">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">知识名称</label>
+          <input id="nodeName" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">分类</label>
+          <select id="nodeCategory" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none"></select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">常见度 (点击次数)</label>
+          <div id="nodeClickCount" class="px-4 py-3 bg-gray-50 rounded-lg text-gray-700">0 次</div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">重要程度</label>
+          <div id="importanceStars" class="flex items-center space-x-2">
+            <i class="fa fa-star text-2xl text-warning cursor-pointer"></i>
+            <i class="fa fa-star text-2xl text-warning cursor-pointer"></i>
+            <i class="fa fa-star text-2xl text-warning cursor-pointer"></i>
+            <i class="fa fa-star-o text-2xl text-gray-300 cursor-pointer"></i>
+            <i class="fa fa-star-o text-2xl text-gray-300 cursor-pointer"></i>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">学习笔记</label>
+          <textarea id="nodeNotes" rows="6" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">关联知识</label>
+          <div id="relatedNodes" class="space-y-2 mb-3"></div>
+        </div>
+      </div>
+      <div class="p-4 border-t border-gray-200 flex justify-between space-x-3 safe-area-bottom">
+        <button id="deleteNode" class="flex-1 px-4 py-3 text-danger border border-danger rounded-lg hover:bg-danger/5">删除节点</button>
+        <button id="saveNode" class="flex-1 px-4 py-3 bg-primary text-white rounded-lg hover:bg-primary/90">保存更改</button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 底部导航 -->
+  <nav class="bg-white border-t border-gray-200 flex justify-center items-center py-2 safe-area-bottom z-20 space-x-16">
+    <button class="touch-target flex flex-col items-center justify-center text-primary">
+      <i class="fa fa-sitemap text-xl mb-1"></i><span class="text-xs">图谱</span>
+    </button>
+    <button id="addNodeBtn" class="touch-target flex flex-col items-center justify-center text-gray-600 hover:text-primary">
+      <div class="w-12 h-12 bg-primary rounded-full flex items-center justify-center -mt-6 shadow-lg">
+        <i class="fa fa-plus text-white text-xl"></i>
+      </div>
+      <span class="text-xs mt-1">添加</span>
+    </button>
+  </nav>
+
+  <!-- 添加节点弹窗 -->
+  <div id="addNodeModal" class="fixed inset-0 bg-black/50 flex items-end justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-white rounded-t-xl shadow-xl w-full max-w-lg transform translate-y-full transition-transform duration-300 max-h-[90vh] flex flex-col">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-lg font-semibold">添加新知识</h2>
+        <button id="cancelAdd" class="touch-target text-gray-400"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="p-4 space-y-4 overflow-y-auto flex-1">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">知识名称 *</label>
+          <input id="newNodeName" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none" placeholder="输入知识名称">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">分类</label>
+          <select id="newNodeCategory" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none"></select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">关联知识</label>
+          <select id="newNodeRelated" class="w-full px-4 py-3 border border-gray-300 outline-none">
+            <option value="">选择关联知识（可选）</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">关系类型</label>
+          <select id="newRelationType" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none">
+            <option value="contains">包含关系</option>
+            <option value="prerequisite">前置知识</option>
+            <option value="related">相关关系</option>
+          </select>
+        </div>
+      </div>
+      <div class="p-4 border-t border-gray-200 safe-area-bottom">
+        <button id="confirmAdd" class="w-full px-4 py-3 bg-primary text-white rounded-lg">添加知识</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加分类弹窗 -->
+  <div id="addCategoryModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 transform scale-95 transition-transform duration-300">
+      <div class="p-4 border-b border-gray-200 flex justify-between items">
+        <h2 class="text-lg font-semibold">添加分类</h2>
+        <button id="cancelAddCategory" class="touch-target text-gray-400"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="p-4 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">分类名称</label>
+          <input id="newCategoryName" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none" placeholder="输入分类名称">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">分类颜色</label>
+          <div class="flex flex-wrap gap-3" id="colorOptions">
+            <button class="colorOption w-8 h-8 rounded-full bg-blue-500 border-2 border-primary" data-color="#3b82f6"></button>
+            <button class="colorOption w-8 h-8 rounded-full bg-green-500 border-2 border-transparent" data-color="#10b981"></button>
+            <button class="colorOption w-8 h-8 rounded-full bg-purple-500 border-2 border-transparent" data-color="#8b5cf6"></button>
+            <button class="colorOption w-8 h-8 rounded-full bg-red-500 border-2 border-transparent" data-color="#ef4444"></button>
+            <button class="colorOption w-8 h-8 rounded-full bg-yellow-500 border-2 border-transparent" data-color="#f59e0b"></button>
+            <button class="colorOption w-8 h-8 rounded-full bg-gray-500 border-2 border-transparent" data-color="#64748b"></button>
+          </div>
+        </div>
+      </div>
+      <div class="p-4 border-t border-gray-200">
+        <button id="confirmAddCategory" class="w-full px-4 py-3 bg-primary text-white rounded-lg">添加分类</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 删除分类弹窗 -->
+  <div id="deleteCategoryModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 transform scale-95 transition-transform duration-300">
+      <div class="p-4 border-b border-gray-200"><h2 class="text-lg font-semibold">删除分类</h2></div>
+      <div class="p-4">
+        <p id="deleteCategoryMsg" class="text-base text-gray-700 mb-4">确定要删除该分类吗？</p>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">转移至</label>
+          <select id="transferCategory" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none"></select>
+        </div>
+      </div>
+      <div class="p-4 border-t border-gray-200 flex space-x-3">
+        <button id="cancelDeleteCategory" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg">取消</button>
+        <button id="confirmDeleteCategory" class="flex-1 px-4 py-3 bg-danger text-white rounded-lg">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 清空确认弹窗 -->
+  <div id="clearConfirmModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 transform scale-95 transition-transform duration-300">
+      <div class="p-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-danger">⚠️ 确认清空所有数据</h2>
+      </div>
+      <div class="p-4">
+        <p class="text-base text-gray-700 mb-4">此操作永久删除所有节点、连线，无法恢复！</p>
+        <p class="text-sm text-gray-500 mb-4">清空后保留默认分类</p>
+        <div class="space-y-2">
+          <button id="confirmClear" class="w-full px-4 py-3 bg-danger text-white rounded-lg">确认清空</button>
+          <button id="cancelClear" class="w-full px-4 py-3 border border-gray-300 rounded-lg">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS PWA 安装引导 -->
+  <div id="pwaTip" style="display:none;" class="fixed bottom-20 left-4 right-4 bg-dark text-white rounded-xl p-4 z-50 shadow-lg">
+    <p class="text-sm mb-2">💡 添加到主屏幕，下次一键打开</p>
+    <p class="text-xs text-gray-300">点击底部 <i class="fa fa-share-square-o"></i> 分享 → 添加到主屏幕</p>
+    <button onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-white/60 touch-target"><i class="fa fa-times"></i></button>
+  </div>
+
+  <!-- 隐藏的文件选择器 -->
+  <input type="file" id="importFileInput" accept=".json" style="display:none;">
+
+  <!-- 导入预览弹窗 -->
+  <div id="importPreviewModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 transform scale-95 transition-transform duration-300 overflow-hidden">
+      <div class="p-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold">📥 导入数据预览</h2>
+      </div>
+      <div class="p-4 space-y-4">
+        <div class="text-sm text-gray-600">
+          <p id="importFileName" class="font-medium text-dark truncate"></p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
+          <div class="flex justify-between"><span>📂 分类</span><span id="importCatCount" class="font-semibold"></span></div>
+          <div class="flex justify-between"><span>🔵 节点</span><span id="importNodeCount" class="font-semibold"></span></div>
+          <div class="flex justify-between"><span>🔗 连线</span><span id="importLinkCount" class="font-semibold"></span></div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm" id="importMergeInfo" style="display:none;">
+          <span id="importMergeText"></span>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">导入模式</label>
+          <div class="space-y-2">
+            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50" id="replaceModeLabel">
+              <input type="radio" name="importMode" value="replace" class="mr-3" checked>
+              <div>
+                <span class="font-medium">🔄 完全替换</span>
+                <p class="text-xs text-gray-500">清空当前所有数据，用导入数据替换</p>
+              </div>
+            </label>
+            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50" id="mergeModeLabel">
+              <input type="radio" name="importMode" value="merge" class="mr-3">
+              <div>
+                <span class="font-medium">📥 智能合并</span>
+                <p class="text-xs text-gray-500">同名节点不重复，连线关系整合进来</p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="p-4 border-t border-gray-200 flex space-x-3">
+        <button id="cancelImport" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg">取消</button>
+        <button id="confirmImport" class="flex-1 px-4 py-3 bg-primary text-white rounded-lg">确认导入</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 基础数据
+    const initialData = {
+      categories: [
+        { id: 'programming', name: '编程技术', color: '#3b82f6' },
+        { id: 'datascience', name: '数据科学', color: '#10b981' },
+        { id: 'ai', name: '人工智能', color: '#8b5cf6' },
+        { id: 'other', name: '其他', color: '#64748b' }
+      ],
+      nodes: [
+        { id: 1, name: "JavaScript", category: "programming", importance: 5, notes: "Web前端开发核心语言", clickCount: 0 },
+        { id: 2, name: "HTML", category: "programming", importance: 4, notes: "网页结构标记语言", clickCount: 0 },
+        { id: 3, name: "CSS", category: "programming", importance: 4, notes: "网页样式描述语言", clickCount: 0 },
+        { id: 4, name: "React", category: "programming", importance: 5, notes: "前端UI构建库", clickCount: 0 },
+        { id: 5, name: "Node.js", category: "programming", importance: 4, notes: "服务端JS运行时", clickCount: 0 },
+        { id: 6, name: "Python", category: "datascience", importance: 5, notes: "通用编程语言", clickCount: 0 },
+        { id: 7, name: "数据分析", category: "datascience", importance: 4, notes: "数据提取与分析", clickCount: 0 },
+        { id: 8, name: "机器学习", category: "ai", importance: 5, notes: "数据驱动学习", clickCount: 0 },
+        { id: 9, name: "深度学习", category: "ai", importance: 5, notes: "基于神经网络", clickCount: 0 },
+        { id: 10, name: "神经网络", category: "ai", importance: 4, notes: "深度学习基础", clickCount: 0 },
+        { id: 11, name: "Pandas", category: "datascience", importance: 4, notes: "Python数据分析库", clickCount: 0 },
+        { id: 12, name: "TensorFlow", category: "ai", importance: 4, notes: "机器学习框架", clickCount: 0 }
+      ],
+      links: [
+        { source: 1, target: 4, type: "prerequisite" },
+        { source: 1, target: 5, type: "prerequisite" },
+        { source: 2, target: 4, type: "prerequisite" },
+        { source: 3, target: 4, type: "prerequisite" },
+        { source: 1, target: 2, type: "related" },
+        { source: 1, target: 3, type: "related" },
+        { source: 2, target: 3, type: "related" },
+        { source: 6, target: 7, type: "prerequisite" },
+        { source: 6, target: 11, type: "contains" },
+        { source: 7, target: 11, type: "prerequisite" },
+        { source: 6, target: 8, type: "prerequisite" },
+        { source: 8, target: 9, type: "contains" },
+        { source: 9, target: 10, type: "prerequisite" },
+        { source: 9, target: 12, type: "related" },
+        { source: 8, target: 12, type: "related" }
+      ]
+    };
+
+    // 全局变量
+    let currentData = {};
+    let selectedNode = null;
+    let selectedCategoryId = null;
+    let selectedColor = '#3b82f6';
+    let simulation, linkForce, svg, g, link, node;
+    let dragStartX = 0, dragStartY = 0;
+    const CLICK_THRESHOLD = 8;
+
+    // DOM快捷获取
+    const $ = id => document.getElementById(id);
+    const dom = {
+      menuBtn: $('menuBtn'), sidebar: $('sidebar'), closeSidebar: $('closeSidebar'), overlay: $('overlay'),
+      searchBtn: $('searchBtn'), mobileSearch: $('mobileSearch'), closeSearch: $('closeSearch'), searchInput: $('searchInput'),
+      addNodeBtn: $('addNodeBtn'), addNodeModal: $('addNodeModal'), cancelAdd: $('cancelAdd'), confirmAdd: $('confirmAdd'),
+      newNodeName: $('newNodeName'), newNodeCategory: $('newNodeCategory'), newNodeRelated: $('newNodeRelated'), newRelationType: $('newRelationType'),
+      nodeDetails: $('nodeDetails'), closeDetail: $('closeDetail'), nodeName: $('nodeName'), nodeCategory: $('nodeCategory'),
+      nodeClickCount: $('nodeClickCount'), nodeNotes: $('nodeNotes'), importanceStars: $('importanceStars'), relatedNodes: $('relatedNodes'),
+      saveNode: $('saveNode'), deleteNode: $('deleteNode'), categoriesList: $('categoriesList'), addCategoryBtn: $('addCategoryBtn'),
+      addCategoryModal: $('addCategoryModal'), cancelAddCategory: $('cancelAddCategory'), confirmAddCategory: $('confirmAddCategory'),
+      newCategoryName: $('newCategoryName'), colorOptions: document.querySelectorAll('.colorOption'),
+      deleteCategoryModal: $('deleteCategoryModal'), deleteCategoryMsg: $('deleteCategoryMsg'), cancelDeleteCategory: $('cancelDeleteCategory'),
+      confirmDeleteCategory: $('confirmDeleteCategory'), transferCategory: $('transferCategory'), recentNodes: $('recentNodes'),
+      clearAllBtn: $('clearAllBtn'), clearConfirmModal: $('clearConfirmModal'), confirmClear: $('confirmClear'),
+      cancelClear: $('cancelClear'), emptyState: $('emptyState'), knowledgeGraph: $('knowledgeGraph'), detailTitle: $('detailTitle'),
+      // 导入导出
+      exportDataBtn: $('exportDataBtn'), importDataBtn: $('importDataBtn'), importFileInput: $('importFileInput'),
+      importPreviewModal: $('importPreviewModal'), importFileName: $('importFileName'), importCatCount: $('importCatCount'),
+      importNodeCount: $('importNodeCount'), importLinkCount: $('importLinkCount'), cancelImport: $('cancelImport'),
+      confirmImport: $('confirmImport'), importMergeInfo: $('importMergeInfo'), importMergeText: $('importMergeText')
+    };
+
+    // ========== 数据初始化 & 持久化 ==========
+    function initData() {
+      try {
+        const local = localStorage.getItem('knowledgeGraph');
+        if (local) {
+          currentData = JSON.parse(local);
+          // 标准化连线：强制转为ID字符串，杜绝对象引用错乱
+          currentData.links = currentData.links.map(l => ({
+            source: typeof l.source === 'object' ? l.source.id : l.source,
+            target: typeof l.target === 'object' ? l.target.id : l.target,
+            type: l.type
+          }));
+          currentData.nodes.forEach(n => { if (n.clickCount === undefined) n.clickCount = 0; delete n.status; });
+        } else {
+          currentData = JSON.parse(JSON.stringify(initialData));
+        }
+      } catch (e) {
+        currentData = JSON.parse(JSON.stringify(initialData));
+      }
+      saveLocal();
+      cleanInvalidLinks();
+    }
+    function saveLocal() {
+      localStorage.setItem('knowledgeGraph', JSON.stringify(currentData));
+    }
+    function cleanInvalidLinks() {
+      // 标准化：D3 力导向模拟后 source/target 可能被变异为对象引用
+      currentData.links = currentData.links.map(l => ({
+        source: typeof l.source === 'object' ? l.source.id : l.source,
+        target: typeof l.target === 'object' ? l.target.id : l.target,
+        type: l.type
+      }));
+      const nodeIds = new Set(currentData.nodes.map(n => n.id));
+      currentData.links = currentData.links.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
+      const linkMap = new Set();
+      currentData.links = currentData.links.filter(l => {
+        const key = `${l.source}-${l.target}-${l.type}`;
+        if (linkMap.has(key)) return false;
+        linkMap.add(key);
+        return true;
+      });
+      saveLocal();
+    }
+
+    // ========== 样式工具 ==========
+    function getNodeStroke(click) {
+      if (click <= 2) return '#bfdbfe';
+      if (click <= 5) return '#60a5fa';
+      if (click <= 9) return '#2563eb';
+      return '#1e3a8a';
+    }
+    function getCategoryColor(cid) {
+      const c = currentData.categories.find(x => x.id === cid);
+      return c ? c.color : '#94a3b8';
+    }
+
+    // ========== 图谱渲染 + 核心拖拽联动 ==========
+    // ========== 图谱渲染 + 核心拖拽联动 ==========
+function renderGraph() {
+  d3.select("#knowledgeGraph").selectAll("*").remove();
+  const hh = 60, nh = 60;
+  const w = window.innerWidth;
+  const h = window.innerHeight - hh - nh;
+
+  svg = d3.select("#knowledgeGraph").attr("width", w).attr("height", h);
+  
+  // ====================== 新增：缩放 + 平移 ======================
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 3]) // 最小/最大缩放
+    .on("zoom", (event) => {
+      g.attr("transform", event.transform);
+    });
+
+  svg.call(zoom); // 绑定到画布
+  // ==============================================================
+
+  g = svg.append("g"); // 所有节点连线放在这个分组里
+
+  // 箭头标记
+  svg.append("defs").selectAll("marker")
+    .data(["contains", "prerequisite", "related"])
+    .enter().append("marker")
+    .attr("id", d => `arrow_${d}`)
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 32).attr("refY", 0)
+    .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+    .append("path")
+    .attr("d", "M0,-5L10,0L0,5")
+    .attr("fill", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d]));
+
+  // 【标准力导向配置：保证拖拽联动】
+  linkForce = d3.forceLink(currentData.links)
+    .id(d => d.id)
+    .distance(130)
+    .strength(1.0);
+
+  simulation = d3.forceSimulation(currentData.nodes)
+    .force("link", linkForce)
+    .force("charge", d3.forceManyBody().strength(-120))
+    .force("center", d3.forceCenter(w / 2, h / 2))
+    .force("collision", d3.forceCollide().radius(48))
+    .velocityDecay(0.45);
+
+  // 绘制连线
+  link = g.append("g").selectAll("line")
+    .data(currentData.links)
+    .enter().append("line")
+    .attr("stroke", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d.type]))
+    .attr("stroke-width", 2)
+    .attr("marker-end", d => `url(#arrow_${d.type})`);
+
+  // 绘制节点
+  node = g.append("g").selectAll(".node")
+    .data(currentData.nodes)
+    .enter().append("g")
+    .attr("class", "node");
+
+  node.append("circle")
+    .attr("r", d => 18 + d.importance * 2)
+    .attr("fill", d => getCategoryColor(d.category))
+    .attr("stroke", d => getNodeStroke(d.clickCount))
+    .attr("stroke-width", 3)
+    .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0.1))");
+
+  node.append("text")
+    .attr("dy", 35).attr("text-anchor", "middle")
+    .attr("font-size", "11px").attr("fill", "#334155")
+    .text(d => d.name.length > 6 ? d.name.slice(0, 6) + "..." : d.name);
+
+  // 鼠标按下记录坐标（区分点击/拖拽）
+  node.on("mousedown", (e, d) => {
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+  });
+
+  // 【原生D3拖拽：标准联动逻辑】
+  const dragBehavior = d3.drag()
+    .on("start", dragStarted)
+    .on("drag", dragged)
+    .on("end", dragEnded);
+  node.call(dragBehavior);
+
+  // 纯点击事件（打开详情）
+  node.on("click", (e, d) => {
+    const dx = Math.abs(e.clientX - dragStartX);
+    const dy = Math.abs(e.clientY - dragStartY);
+    if (dx < CLICK_THRESHOLD && dy < CLICK_THRESHOLD) {
+      openNodePanel(d);
+    }
+  });
+
+  // 帧渲染（稳定连线，杜绝错乱）
+  simulation.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+    node.attr("transform", d => `translate(${d.x},${d.y})`);
+  });
+
+  updateEmptyState();
+}
+
+    // ========== 标准拖拽联动（核心修复：关联节点强制跟随） ==========
+    function dragStarted(e, d) {
+      if (!e.active) simulation.alpha(1).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+    function dragged(e, d) {
+      // 仅固定被拖拽节点，连线拉力自动带动关联节点
+      d.fx = e.x;
+      d.fy = e.y;
+    }
+    function dragEnded(e, d) {
+      if (!e.active) simulation.alpha(0);
+      d.fx = null;
+      d.fy = null;
+      // 松手后轻微布局回弹，保持美观
+      simulation.alpha(0.2).restart();
+    }
+
+    // ========== 节点详情面板 ==========
+    function openNodePanel(d) {
+      selectedNode = d;
+      d.clickCount++;
+      saveLocal();
+
+      // 重置旧节点样式
+      if (node) {
+        node.select("circle")
+          .attr("r", n => 18 + n.importance * 2)
+          .attr("stroke", n => getNodeStroke(n.clickCount));
+      }
+      // 高亮当前节点
+      node.filter(n => n.id === d.id)
+        .select("circle")
+        .attr("r", 22 + d.importance * 2)
+        .attr("stroke", "#fbbf24");
+
+      dom.detailTitle.textContent = d.name;
+      dom.nodeName.value = d.name;
+      dom.nodeCategory.value = d.category;
+      dom.nodeClickCount.textContent = `${d.clickCount} 次`;
+      dom.nodeNotes.value = d.notes || "";
+
+      // 星级
+      const stars = dom.importanceStars.querySelectorAll("i");
+      stars.forEach((s, i) => {
+        s.className = i < d.importance ? "fa fa-star text-2xl text-warning cursor-pointer" : "fa fa-star-o text-2xl text-gray-300 cursor-pointer";
+      });
+      renderRelatedList(d);
+      dom.nodeDetails.classList.remove("translate-x-full");
+    }
+    function closeNodePanel() {
+      dom.nodeDetails.classList.add("translate-x-full");
+      selectedNode = null;
+    }
+    function renderRelatedList(d) {
+      const container = dom.relatedNodes;
+      container.innerHTML = "";
+      const links = currentData.links.filter(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        return s === d.id || t === d.id;
+      });
+      const typeMap = { contains: "包含关系", prerequisite: "前置知识", related: "相关关系" };
+      if (links.length === 0) {
+        const emptyDiv = document.createElement("div");
+        emptyDiv.className = "text-gray-400 text-center py-2";
+        emptyDiv.textContent = "暂无关联知识";
+        container.appendChild(emptyDiv);
+      }
+      links.forEach(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        const relateId = s === d.id ? t : s;
+        const relateNode = currentData.nodes.find(n => n.id === relateId);
+        if (!relateNode) return;
+        const div = document.createElement("div");
+        div.className = "flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100";
+        div.innerHTML = `
+          <div class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${getCategoryColor(relateNode.category)}"></span>
+            <span>${relateNode.name}</span>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-xs bg-gray-200 px-2 py-0.5 rounded">${typeMap[l.type]}</span>
+            <button class="del-rel w-7 h-7 flex items-center justify-center text-gray-400 hover:text-danger rounded-full touch-target">
+              <i class="fa fa-times"></i>
+            </button>
+          </div>
+        `;
+        div.querySelector(".cursor-pointer").onclick = () => openNodePanel(relateNode);
+        div.querySelector(".del-rel").onclick = (e) => {
+          e.stopPropagation();
+          if (!confirm(`确定解除与「${relateNode.name}」的关联？`)) return;
+          deleteRelation(d.id, relateId, l.type);
+          renderRelatedList(d);
+          renderGraph();
+        };
+        container.appendChild(div);
+      });
+      // 添加关联按钮
+      const addBtn = document.createElement("button");
+      addBtn.className = "w-full p-2 border border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-primary hover:text-primary text-sm mt-2";
+      addBtn.innerHTML = '<i class="fa fa-plus mr-1"></i>添加关联';
+      addBtn.onclick = () => showAddRelationForm(d, container);
+      container.appendChild(addBtn);
+    }
+
+    function deleteRelation(nodeId, relateId, type) {
+      currentData.links = currentData.links.filter(l => {
+        if (l.type !== type) return true;
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        return !((s === nodeId && t === relateId) || (s === relateId && t === nodeId));
+      });
+      cleanInvalidLinks();
+      saveLocal();
+    }
+
+    function showAddRelationForm(d, container) {
+      const addBtn = container.querySelector("button");
+      if (addBtn) addBtn.remove();
+      const formRow = document.createElement("div");
+      formRow.className = "bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3";
+      formRow.innerHTML = `
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-gray-600 w-16 flex-shrink-0">目标节点</label>
+          <select class="rel-target flex-1 px-2 py-2 border border-gray-300 rounded text-sm outline-none"></select>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-gray-600 w-16 flex-shrink-0">关系类型</label>
+          <select class="rel-type flex-1 px-2 py-2 border border-gray-300 rounded text-sm outline-none">
+            <option value="contains">包含关系</option>
+            <option value="prerequisite">前置知识</option>
+            <option value="related">相关关系</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button class="cancel-rel px-3 py-1.5 border border-gray-300 rounded text-sm">取消</button>
+          <button class="confirm-rel px-3 py-1.5 bg-primary text-white rounded text-sm">确认</button>
+        </div>
+      `;
+      container.appendChild(formRow);
+      const targetSel = formRow.querySelector(".rel-target");
+      const linkedIds = new Set();
+      currentData.links.filter(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        return s === d.id || t === d.id;
+      }).forEach(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        linkedIds.add(s === d.id ? t : s);
+      });
+      const hasOptions = currentData.nodes.some(n => n.id !== d.id && !linkedIds.has(n.id));
+      if (!hasOptions) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "没有可关联的节点";
+        opt.disabled = true;
+        targetSel.appendChild(opt);
+      }
+      currentData.nodes.forEach(n => {
+        if (n.id === d.id || linkedIds.has(n.id)) return;
+        const opt = document.createElement("option");
+        opt.value = n.id;
+        opt.textContent = n.name;
+        targetSel.appendChild(opt);
+      });
+      formRow.querySelector(".cancel-rel").onclick = () => renderRelatedList(d);
+      formRow.querySelector(".confirm-rel").onclick = () => {
+        const targetId = +targetSel.value;
+        const type = formRow.querySelector(".rel-type").value;
+        if (!targetId) { alert("请选择目标节点"); return; }
+        const exists = currentData.links.some(l => {
+          const s = typeof l.source === 'object' ? l.source.id : l.source;
+          const t = typeof l.target === 'object' ? l.target.id : l.target;
+          return (s === d.id && t === targetId && l.type === type) || (s === targetId && t === d.id && l.type === type);
+        });
+        if (exists) { alert("该关联已存在"); return; }
+        currentData.links.push({ source: d.id, target: targetId, type: type });
+        cleanInvalidLinks();
+        saveLocal();
+        renderRelatedList(d);
+        renderGraph();
+      };
+    }
+
+    // ========== 通用渲染 ==========
+    function updateEmptyState() {
+      dom.emptyState.classList.toggle("hidden", currentData.nodes.length > 0);
+    }
+    function renderCategoryList() {
+      dom.categoriesList.innerHTML = "";
+      const allItem = document.createElement("div");
+      allItem.className = "flex items-center justify-between p-3 rounded-lg bg-primary/10 text-primary cursor-pointer";
+      allItem.innerHTML = `<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-primary"></span><span>全部知识</span></div><span class="text-xs bg-primary/20 px-2 py-0.5 rounded">${currentData.nodes.length}</span>`;
+      dom.categoriesList.appendChild(allItem);
+
+      currentData.categories.forEach(cat => {
+        const cnt = currentData.nodes.filter(n => n.category === cat.id).length;
+        const div = document.createElement("div");
+        div.className = "flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 cursor-pointer";
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full" style="background:${cat.color}"></span>
+            <span>${cat.name}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs bg-gray-200 px-2 py-0.5 rounded">${cnt}</span>
+            ${cat.id !== "other" ? `<button class="delCat w-6 h-6 text-gray-400 hover:text-danger" data-catid="${cat.id}"><i class="fa fa-trash-o"></i></button>` : ""}
+        `;
+        dom.categoriesList.appendChild(div);
+      });
+
+      document.querySelectorAll(".delCat").forEach(btn => {
+        btn.onclick = e => {
+          e.stopPropagation();
+          const cid = btn.dataset.catid;
+          if (cid) openDelCat(cid);
+        };
+      });
+      updateCategorySelect();
+    }
+    function updateCategorySelect() {
+      const selects = [dom.nodeCategory, dom.newNodeCategory, dom.transferCategory];
+      selects.forEach(sel => {
+        sel.innerHTML = "";
+        currentData.categories.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.id;
+          opt.textContent = c.name;
+          sel.appendChild(opt);
+        });
+      });
+      // 关联节点下拉
+      const relSel = dom.newNodeRelated;
+      relSel.innerHTML = '<option value="">选择关联知识（可选）</option>';
+      currentData.nodes.forEach(n => {
+        const opt = document.createElement("option");
+        opt.value = n.id;
+        opt.textContent = n.name;
+        relSel.appendChild(opt);
+      });
+    }
+    function renderRecentList() {
+      dom.recentNodes.innerHTML = "";
+      if (currentData.nodes.length === 0) {
+        dom.recentNodes.innerHTML = '<div class="text-gray-400 text-center py-4">暂无添加的节点</div>';
+        return;
+      }
+      const list = currentData.nodes.slice(-5).reverse();
+      list.forEach(n => {
+        const div = document.createElement("div");
+        div.className = "p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100";
+        div.innerHTML = `
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-2 h-2 rounded-full" style="background:${getCategoryColor(n.category)}"></span>
+            <span class="font-medium">${n.name}</span>
+          </div>
+          <div class="text-xs text-gray-500 flex justify-between">
+            <span>${n.importance}星</span>
+            <span>${n.clickCount}次</span>
+          </div>
+        `;
+        div.onclick = () => openNodePanel(n);
+        dom.recentNodes.appendChild(div);
+      });
+    }
+
+    // ========== 弹窗控制 ==========
+    function openModal(el) { el.classList.remove("opacity-0", "pointer-events-none"); }
+    function closeModal(el) { el.classList.add("opacity-0", "pointer-events-none"); }
+    function openSidebar() { dom.sidebar.classList.remove("-translate-x-full"); dom.overlay.classList.remove("opacity-0", "pointer-events-none"); }
+    function closeSidebar() { dom.sidebar.classList.add("-translate-x-full"); dom.overlay.classList.add("opacity-0", "pointer-events-none"); }
+    function openSearch() { dom.mobileSearch.classList.remove("-translate-y-full"); dom.searchInput.focus(); }
+    function closeSearch() { dom.mobileSearch.classList.add("-translate-y-full"); dom.searchInput.value = ""; }
+    function openAddNode() { dom.addNodeModal.querySelector(".bg-white").classList.remove("translate-y-full"); openModal(dom.addNodeModal); }
+    function closeAddNode() { dom.addNodeModal.querySelector(".bg-white").classList.add("translate-y-full"); setTimeout(() => closeModal(dom.addNodeModal), 300); }
+    function openAddCat() { dom.addCategoryModal.querySelector(".bg-white").classList.remove("scale-95"); openModal(dom.addCategoryModal); }
+    function closeAddCat() { dom.addCategoryModal.querySelector(".bg-white").classList.add("scale-95"); setTimeout(() => closeModal(dom.addCategoryModal), 300); }
+    function openDelCat(cid) { selectedCategoryId = cid; openModal(dom.deleteCategoryModal); }
+    function closeDelCat() { closeModal(dom.deleteCategoryModal); }
+    function openClear() { openModal(dom.clearConfirmModal); }
+    function closeClear() { closeModal(dom.clearConfirmModal); }
+
+    // ========== 业务操作 ==========
+    function addNode() {
+      const name = dom.newNodeName.value.trim();
+      const cid = dom.newNodeCategory.value;
+      const relId = dom.newNodeRelated.value;
+      const rType = dom.newRelationType.value;
+      if (!name) return alert("请输入知识名称");
+      const newId = currentData.nodes.length ? Math.max(...currentData.nodes.map(n => n.id)) + 1 : 1;
+      const newNode = { id: newId, name, category: cid, importance: 3, notes: "", clickCount: 0 };
+      currentData.nodes.push(newNode);
+      if (relId) currentData.links.push({ source: +relId, target: newId, type: rType });
+      cleanInvalidLinks();
+      saveLocal();
+      renderGraph(); renderCategoryList(); renderRecentList(); closeAddNode();
+      setTimeout(() => openNodePanel(newNode), 300);
+    }
+    function saveNodeInfo() {
+      if (!selectedNode) return;
+      selectedNode.name = dom.nodeName.value.trim();
+      selectedNode.category = dom.nodeCategory.value;
+      selectedNode.notes = dom.nodeNotes.value.trim();
+      let imp = 0;
+      dom.importanceStars.querySelectorAll("i").forEach((s, idx) => { if (s.classList.contains("fa-star")) imp = idx + 1; });
+      selectedNode.importance = imp;
+      saveLocal();
+      renderGraph(); renderCategoryList(); renderRecentList();
+      alert("保存成功");
+    }
+    function delNode() {
+      if (!selectedNode || !confirm("确定删除该节点？")) return;
+      const id = selectedNode.id;
+      currentData.nodes = currentData.nodes.filter(n => n.id !== id);
+      currentData.links = currentData.links.filter(l => l.source !== id && l.target !== id);
+      cleanInvalidLinks();
+      saveLocal();
+      closeNodePanel();
+      renderGraph(); renderCategoryList(); renderRecentList(); updateEmptyState();
+    }
+    function addCategory() {
+      const name = dom.newCategoryName.value.trim();
+      if (!name) return alert("请输入分类名称");
+      const newId = "cat_" + Date.now();
+      currentData.categories.push({ id: newId, name, color: selectedColor });
+      saveLocal();
+      renderCategoryList(); closeAddCat(); dom.newCategoryName.value = "";
+    }
+    function delCategory() {
+      const cid = selectedCategoryId;
+      const toId = dom.transferCategory.value;
+      currentData.nodes.forEach(n => { if (n.category === cid) n.category = toId; });
+      currentData.categories = currentData.categories.filter(c => c.id !== cid);
+      saveLocal();
+      renderGraph(); renderCategoryList(); closeDelCat();
+    }
+    function clearAll() {
+      if (simulation) simulation.stop();
+      currentData.nodes = [];
+      currentData.links = [];
+      saveLocal();
+      selectedNode = null;
+      closeClear(); closeSidebar(); closeNodePanel();
+      renderGraph(); renderCategoryList(); renderRecentList(); updateEmptyState();
+      alert("数据已清空");
+    }
+
+    // ========== 导入导出 ==========
+    function exportData() {
+      const dataStr = JSON.stringify(currentData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const now = new Date();
+      const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+      a.href = url;
+      a.download = `知识图谱_${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function validateImportData(data) {
+      if (!data || typeof data !== 'object') return '文件格式错误：不是有效的JSON对象';
+      if (!Array.isArray(data.categories)) return '缺少 categories 数组';
+      if (!Array.isArray(data.nodes)) return '缺少 nodes 数组';
+      if (!Array.isArray(data.links)) return '缺少 links 数组';
+      for (let i = 0; i < data.categories.length; i++) {
+        const c = data.categories[i];
+        if (!c.id || !c.name) return `categories[${i}] 缺少 id 或 name 字段`;
+      }
+      for (let i = 0; i < data.nodes.length; i++) {
+        const n = data.nodes[i];
+        if (n.id === undefined || !n.name) return `nodes[${i}] 缺少 id 或 name 字段`;
+      }
+      for (let i = 0; i < data.links.length; i++) {
+        const l = data.links[i];
+        if (l.source === undefined || l.target === undefined || !l.type) return `links[${i}] 缺少 source、target 或 type 字段`;
+      }
+      return null;
+    }
+
+    let pendingImportData = null;
+
+    function handleFileImport(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          const data = JSON.parse(ev.target.result);
+          const err = validateImportData(data);
+          if (err) {
+            alert('❌ ' + err);
+            dom.importFileInput.value = '';
+            return;
+          }
+          pendingImportData = data;
+          showImportPreview(data);
+        } catch (ex) {
+          alert('❌ JSON 解析失败，请检查文件格式');
+          dom.importFileInput.value = '';
+        }
+      };
+      reader.readAsText(file);
+      dom.importFileInput.value = '';
+    }
+
+    function showImportPreview(data) {
+      dom.importFileName.textContent = '文件已加载';
+      dom.importCatCount.textContent = data.categories.length + ' 个';
+      dom.importNodeCount.textContent = data.nodes.length + ' 个';
+      dom.importLinkCount.textContent = data.links.length + ' 条';
+
+      // 预计算 idMap（模拟 mergeData 的节点映射逻辑）
+      const existingIdMap = {};
+      const existingNameMap = {};
+      currentData.nodes.forEach(n => {
+        existingIdMap[n.id] = n;
+        existingNameMap[n.name] = n.id;
+      });
+
+      const idMap = {};
+      let newNodes = 0, skippedNodes = 0, mappedNodes = 0;
+
+      data.nodes.forEach(n => {
+        if (existingIdMap[n.id]) {
+          idMap[n.id] = n.id;        // 同ID → 跳过，保留现有
+          skippedNodes++;
+        } else if (existingNameMap[n.name] !== undefined) {
+          idMap[n.id] = existingNameMap[n.name];  // 同名不同ID → 映射到现有节点
+          mappedNodes++;
+        } else {
+          idMap[n.id] = n.id;        // 真正的新节点
+          newNodes++;
+        }
+      });
+
+      // 用映射后的 ID 判断连线是否为新增
+      const existingLinkKeys = new Set(
+        currentData.links.map(l => `${l.source}-${l.target}-${l.type}`)
+      );
+
+      let newLinks = 0;
+      data.links.forEach(l => {
+        const mappedSource = idMap[l.source] !== undefined ? idMap[l.source] : l.source;
+        const mappedTarget = idMap[l.target] !== undefined ? idMap[l.target] : l.target;
+        const key = `${mappedSource}-${mappedTarget}-${l.type}`;
+        if (!existingLinkKeys.has(key)) newLinks++;
+      });
+
+      dom.importMergeText.innerHTML = `合并时将 <b>新增 ${newNodes} 个节点</b>、<b>跳过 ${skippedNodes} 个已有节点</b>、<b>重名映射 ${mappedNodes} 个节点</b>，新增 <b>${newLinks} 条连线</b>`;
+      dom.importMergeInfo.style.display = 'block';
+
+      dom.importPreviewModal.querySelector('.bg-white').classList.remove('scale-95');
+      openModal(dom.importPreviewModal);
+    }
+
+    function confirmImport() {
+      if (!pendingImportData) return;
+      const mode = document.querySelector('input[name="importMode"]:checked').value;
+      if (mode === 'replace') {
+        replaceData(pendingImportData);
+      } else {
+        mergeData(pendingImportData);
+      }
+      closeImportModal();
+      cleanupAfterImport();
+      alert('✅ 数据导入成功！');
+    }
+
+    function closeImportModal() {
+      dom.importPreviewModal.querySelector('.bg-white').classList.add('scale-95');
+      setTimeout(() => closeModal(dom.importPreviewModal), 300);
+      pendingImportData = null;
+    }
+
+    function replaceData(data) {
+      data.nodes = data.nodes.map(n => ({
+        id: n.id, name: n.name, category: n.category || 'other',
+        importance: n.importance || 3, notes: n.notes || '',
+        clickCount: n.clickCount !== undefined ? n.clickCount : 0
+      }));
+      data.links = data.links.map(l => ({
+        source: typeof l.source === 'object' ? l.source.id : l.source,
+        target: typeof l.target === 'object' ? l.target.id : l.target,
+        type: l.type
+      }));
+      currentData = data;
+      cleanInvalidLinks();
+      saveLocal();
+      selectedNode = null;
+      closeNodePanel();
+      closeSidebar();
+      renderGraph();
+      renderCategoryList();
+      renderRecentList();
+      updateEmptyState();
+    }
+
+    function mergeData(data) {
+      const importNodes = data.nodes.map(n => ({
+        id: n.id, name: n.name, category: n.category || 'other',
+        importance: n.importance || 3, notes: n.notes || '',
+        clickCount: n.clickCount !== undefined ? n.clickCount : 0
+      }));
+      const importLinks = data.links.map(l => ({
+        source: typeof l.source === 'object' ? l.source.id : l.source,
+        target: typeof l.target === 'object' ? l.target.id : l.target,
+        type: l.type
+      }));
+      const importCategories = (data.categories || []).map(c => ({
+        id: c.id, name: c.name, color: c.color || '#64748b'
+      }));
+
+      // ★ 关键修复：先规范化现有links，因为D3力模拟后source/target变成了对象引用
+      currentData.links = currentData.links.map(l => ({
+        source: typeof l.source === 'object' ? l.source.id : l.source,
+        target: typeof l.target === 'object' ? l.target.id : l.target,
+        type: l.type
+      }));
+
+      // 1. 合并分类
+      const existingCatIds = new Set(currentData.categories.map(c => c.id));
+      const existingCatNames = new Set(currentData.categories.map(c => c.name));
+      importCategories.forEach(c => {
+        if (!existingCatIds.has(c.id) && !existingCatNames.has(c.name)) {
+          currentData.categories.push(c);
+        }
+      });
+
+      // 2. 建立现有节点映射：名称 → 现有ID
+      const nameToId = {};
+      const usedIds = new Set();
+      currentData.nodes.forEach(n => {
+        nameToId[n.name] = n.id;
+        usedIds.add(n.id);
+      });
+      const maxId = currentData.nodes.reduce((max, n) => Math.max(max, n.id), 0);
+      let nextId = maxId + 1;
+
+      // 3. ★ 纯名称匹配：同名→映射到现有节点，不同名→添加新节点
+      const idMap = {};
+      importNodes.forEach(impNode => {
+        if (nameToId[impNode.name] !== undefined) {
+          // 同名 → 映射到现有节点ID
+          idMap[impNode.id] = nameToId[impNode.name];
+        } else {
+          // 新节点名 → 添加（ID冲突时自动分配新ID）
+          let actualId = impNode.id;
+          if (usedIds.has(actualId)) actualId = nextId++;
+          currentData.nodes.push({ ...impNode, id: actualId });
+          idMap[impNode.id] = actualId;
+          nameToId[impNode.name] = actualId;
+          usedIds.add(actualId);
+        }
+      });
+
+      // 4. 合并连线
+      const existingLinkKeys = new Set(
+        currentData.links.map(l => `${l.source}-${l.target}-${l.type}`)
+      );
+      const allNodeIds = new Set(currentData.nodes.map(n => n.id));
+
+      importLinks.forEach(impLink => {
+        let s = idMap[impLink.source] !== undefined ? idMap[impLink.source] : impLink.source;
+        let t = idMap[impLink.target] !== undefined ? idMap[impLink.target] : impLink.target;
+
+        // 如果端点节点不在图中，从importNodes补加
+        if (!allNodeIds.has(s)) {
+          const orig = importNodes.find(n => n.id === impLink.source);
+          if (!orig) return;
+          let actualId = orig.id;
+          if (usedIds.has(actualId)) actualId = nextId++;
+          currentData.nodes.push({ ...orig, id: actualId });
+          allNodeIds.add(actualId);
+          usedIds.add(actualId);
+          nameToId[orig.name] = actualId;
+          idMap[impLink.source] = actualId;
+          s = actualId;
+        }
+        if (!allNodeIds.has(t)) {
+          const orig = importNodes.find(n => n.id === impLink.target);
+          if (!orig) return;
+          let actualId = orig.id;
+          if (usedIds.has(actualId)) actualId = nextId++;
+          currentData.nodes.push({ ...orig, id: actualId });
+          allNodeIds.add(actualId);
+          usedIds.add(actualId);
+          nameToId[orig.name] = actualId;
+          idMap[impLink.target] = actualId;
+          t = actualId;
+        }
+
+        const key = `${s}-${t}-${impLink.type}`;
+        if (existingLinkKeys.has(key)) return;
+
+        currentData.links.push({ source: s, target: t, type: impLink.type });
+        existingLinkKeys.add(key);
+      });
+
+      cleanInvalidLinks();
+      saveLocal();
+      selectedNode = null;
+      closeNodePanel();
+      closeSidebar();
+      renderGraph();
+      renderCategoryList();
+      renderRecentList();
+      updateEmptyState();
+    }
+
+    function cleanupAfterImport() {
+      pendingImportData = null;
+    }
+
+    // ========== 全局事件绑定 ==========
+    function bindAllEvents() {
+      // 侧边栏
+      dom.menuBtn.onclick = openSidebar;
+      dom.closeSidebar.onclick = closeSidebar;
+      dom.overlay.onclick = closeSidebar;
+      // 搜索
+      dom.searchBtn.onclick = openSearch;
+      dom.closeSearch.onclick = closeSearch;
+      dom.searchInput.oninput = e => {
+        const kw = e.target.value.toLowerCase();
+        if (!kw) { node.select("*").style("opacity", 1); link.style("opacity", 1); return; }
+        const match = currentData.nodes.filter(n => n.name.toLowerCase().includes(kw));
+        node.select("*").style("opacity", d => match.some(x => x.id === d.id) ? 1 : 0.2);
+        link.style("opacity", d => match.some(x => x.id === d.source) && match.some(x => x.id === d.target) ? 1 : 0.1);
+      };
+      // 添加节点
+      dom.addNodeBtn.onclick = openAddNode;
+      dom.cancelAdd.onclick = closeAddNode;
+      dom.confirmAdd.onclick = addNode;
+      // 节点详情
+      dom.closeDetail.onclick = closeNodePanel;
+      dom.saveNode.onclick = saveNodeInfo;
+      dom.deleteNode.onclick = delNode;
+      // 分类
+      dom.addCategoryBtn.onclick = openAddCat;
+      dom.cancelAddCategory.onclick = closeAddCat;
+      dom.confirmAddCategory.onclick = addCategory;
+      dom.cancelDeleteCategory.onclick = closeDelCat;
+      dom.confirmDeleteCategory.onclick = delCategory;
+      // 颜色选择
+      dom.colorOptions.forEach(btn => {
+        btn.onclick = () => {
+          dom.colorOptions.forEach(b => b.classList.remove("border-primary"));
+          btn.classList.add("border-primary");
+          selectedColor = btn.dataset.color;
+        };
+      });
+      // 星级评分
+      dom.importanceStars.querySelectorAll("i").forEach((star, idx) => {
+        star.onclick = () => {
+          dom.importanceStars.querySelectorAll("i").forEach((s, i) => {
+            s.className = i <= idx ? "fa fa-star text-2xl text-warning cursor-pointer" : "fa fa-star-o text-gray-300 cursor-pointer";
+          });
+        };
+      });
+      // 清空
+      dom.clearAllBtn.onclick = openClear;
+      dom.confirmClear.onclick = clearAll;
+      dom.cancelClear.onclick = closeClear;
+      // 导入导出
+      dom.exportDataBtn.onclick = exportData;
+      dom.importDataBtn.onclick = () => dom.importFileInput.click();
+      dom.importFileInput.onchange = handleFileImport;
+      dom.cancelImport.onclick = closeImportModal;
+      dom.confirmImport.onclick = confirmImport;
+      // 窗口缩放
+      window.onresize = () => { if (simulation) simulation.stop(); renderGraph(); };
+      // 禁止双击缩放
+      document.addEventListener("dblclick", e => e.preventDefault(), { passive: false });
+    }
+
+    // ========== PWA 安装引导 ==========
+    const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+    // 拦截 Chrome 原生安装事件（需 HTTPS + manifest + SW 均已就绪才触发）
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!isStandalone) setTimeout(showPwaTip, 2000);
+    });
+
+    // 注册 appinstalled 事件（用户完成安装后清理提示）
+    window.addEventListener('appinstalled', () => {
+      const tip = document.getElementById('pwaTip');
+      if (tip) tip.style.display = 'none';
+      deferredPrompt = null;
+    });
+
+    function showPwaTip() {
+      const tip = document.getElementById('pwaTip');
+      if (!tip || isStandalone) return;
+      if (deferredPrompt) {
+        // Android Chrome 原生安装可用
+        tip.innerHTML = `
+          <p class="text-sm mb-2 font-medium">📲 将知识图谱安装到桌面</p>
+          <p class="text-xs text-gray-300 mb-3">离线也能用，和原生 App 一样流畅</p>
+          <button id="installPwaBtn" class="w-full bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium touch-target mb-2">一键安装到桌面</button>
+          <button id="dismissPwaTip" class="w-full bg-white/20 text-white/80 px-4 py-2 rounded-lg text-xs touch-target">暂时不需要</button>
+        `;
+        tip.style.display = 'block';
+        document.getElementById('installPwaBtn').onclick = () => {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(result => {
+            deferredPrompt = null;
+            if (result.outcome === 'accepted') tip.remove();
+            else tip.style.display = 'none';
+          });
+        };
+        document.getElementById('dismissPwaTip').onclick = () => { tip.style.display = 'none'; };
+      } else if (isIOS) {
+        // iOS Safari 手动引导
+        tip.innerHTML = `
+          <p class="text-sm mb-2 font-medium">💡 添加到主屏幕，下次一键打开</p>
+          <p class="text-xs text-gray-300">点击底部 <i class="fa fa-share-square-o"></i> 分享 → 添加到主屏幕</p>
+          <button onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-white/60 touch-target"><i class="fa fa-times"></i></button>
+        `;
+        tip.style.display = 'block';
+      } else if (isAndroid) {
+        // Android Chrome/Edge 但 HTTP 站点，显示手动安装引导
+        const isHuawei = /HuaweiBrowser|HUAWEI|HarmonyOS/i.test(navigator.userAgent);
+        if (isHuawei) {
+          tip.innerHTML = `
+            <p class="text-sm mb-2 font-medium">📲 将知识图谱添加到桌面</p>
+            <p class="text-xs text-gray-300 mb-2">点击浏览器底部 <b>☰</b> 菜单</p>
+            <p class="text-xs text-gray-300 mb-3">选择「添加到桌面」</p>
+            <button onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-white/60 touch-target"><i class="fa fa-times"></i></button>
+          `;
+        } else {
+          tip.innerHTML = `
+            <p class="text-sm mb-2 font-medium">📲 添加到桌面，像 App 一样使用</p>
+            <p class="text-xs text-gray-300 mb-2">1. 点击浏览器右上角 <b>⋮</b> 菜单</p>
+            <p class="text-xs text-gray-300 mb-3">2. 选择「添加至主屏幕」</p>
+            <button onclick="this.parentElement.remove()" class="w-full bg-white/20 text-white/80 px-4 py-2 rounded-lg text-xs touch-target">知道了</button>
+          `;
+        }
+        tip.style.display = 'block';
+      }
+    }
+    // 延迟显示（给 beforeinstallprompt 一点触发时间，HTTP 下无事件也显示引导）
+    setTimeout(() => {
+      if (!isStandalone) showPwaTip();
+    }, 3500);
+
+    // ========== Service Worker 注册（离线缓存） ==========
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('✅ SW 已注册，离线缓存就绪'))
+          .catch(err => console.warn('⚠️ SW 注册失败:', err));
+      });
+    }
+
+    // ========== 页面入口 ==========
+    window.addEventListener("DOMContentLoaded", () => {
+      initData();
+      renderGraph();
+      renderCategoryList();
+      renderRecentList();
+      bindAllEvents();
+    });
+  </script>
+</body>
+</html>

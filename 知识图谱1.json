@@ -1,0 +1,650 @@
+{
+  "categories": [
+    {
+      "id": "programming",
+      "name": "编程技术",
+      "color": "#3b82f6"
+    },
+    {
+      "id": "datascience",
+      "name": "数据科学",
+      "color": "#10b981"
+    },
+    {
+      "id": "ai",
+      "name": "人工智能",
+      "color": "#8b5cf6"
+    },
+    {
+      "id": "other",
+      "name": "其他",
+      "color": "#64748b"
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "JavaScript",
+      "category": "programming",
+      "importance": 5,
+      "notes": "Web前端开发核心语言",
+      "clickCount": 0,
+      "index": 0,
+      "x": 550.9458486704938,
+      "y": 119.91095395482544,
+      "vy": -0.002241501083335062,
+      "vx": 0.001992542515068835
+    },
+    {
+      "id": 2,
+      "name": "HTML",
+      "category": "programming",
+      "importance": 4,
+      "notes": "网页结构标记语言",
+      "clickCount": 0,
+      "index": 1,
+      "x": 527.1316082539031,
+      "y": 231.5458239463253,
+      "vy": -0.0022130624188978674,
+      "vx": 0.0022804640496309606,
+      "fx": null,
+      "fy": null
+    },
+    {
+      "id": 3,
+      "name": "CSS",
+      "category": "programming",
+      "importance": 4,
+      "notes": "网页样式描述语言",
+      "clickCount": 0,
+      "index": 2,
+      "x": 662.8516737323109,
+      "y": 146.75849611560463,
+      "vy": -0.002892060091948748,
+      "vx": 0.0022002613377337553,
+      "fx": null,
+      "fy": null
+    },
+    {
+      "id": 4,
+      "name": "React",
+      "category": "programming",
+      "importance": 5,
+      "notes": "前端UI构建库",
+      "clickCount": 0,
+      "index": 3,
+      "x": 636.1956444581782,
+      "y": 253.8276121061864,
+      "vy": -0.0027946619795702655,
+      "vx": 0.0023087060574970503
+    },
+    {
+      "id": 5,
+      "name": "Node.js",
+      "category": "programming",
+      "importance": 4,
+      "notes": "服务端JS运行时",
+      "clickCount": 0,
+      "index": 4,
+      "x": 417.0637262475453,
+      "y": 121.66624498467993,
+      "vy": -0.0040843856809998575,
+      "vx": 0.0018734889364394418
+    },
+    {
+      "id": 6,
+      "name": "Python",
+      "category": "datascience",
+      "importance": 5,
+      "notes": "通用编程语言",
+      "clickCount": 0,
+      "index": 5,
+      "x": 306.33844951392643,
+      "y": 315.01721082495925,
+      "vy": 0.0008644570495141863,
+      "vx": -0.00022593966390256967
+    },
+    {
+      "id": 7,
+      "name": "数据分析",
+      "category": "datascience",
+      "importance": 4,
+      "notes": "数据提取与分析",
+      "clickCount": 0,
+      "index": 6,
+      "x": 169.52660754765935,
+      "y": 317.49390376587826,
+      "vy": 0.0017075415341121633,
+      "vx": -0.00004081443573284964
+    },
+    {
+      "id": 8,
+      "name": "机器学习",
+      "category": "ai",
+      "importance": 5,
+      "notes": "数据驱动学习",
+      "clickCount": 0,
+      "index": 7,
+      "x": 442.1789849914695,
+      "y": 361.54388163136355,
+      "vy": 0.0003088927362302324,
+      "vx": -0.00029468081125370377
+    },
+    {
+      "id": 9,
+      "name": "深度学习",
+      "category": "ai",
+      "importance": 5,
+      "notes": "基于神经网络",
+      "clickCount": 0,
+      "index": 8,
+      "x": 572.1886293734749,
+      "y": 377.47363096684467,
+      "vy": -0.000058176965968503374,
+      "vx": -0.00032988461994075245
+    },
+    {
+      "id": 10,
+      "name": "神经网络",
+      "category": "ai",
+      "importance": 4,
+      "notes": "深度学习基础",
+      "clickCount": 0,
+      "index": 9,
+      "x": 446.77403173964717,
+      "y": 457.4293147577727,
+      "vy": 0.00040236129122550997,
+      "vx": -0.000041270460100531916
+    },
+    {
+      "id": 11,
+      "name": "Pandas",
+      "category": "datascience",
+      "importance": 4,
+      "notes": "Python数据分析库",
+      "clickCount": 0,
+      "index": 10,
+      "x": 228.09559494410934,
+      "y": 202.33800734010325,
+      "vy": 0.0014096778119178672,
+      "vx": -0.000606963501870057
+    },
+    {
+      "id": 12,
+      "name": "TensorFlow",
+      "category": "ai",
+      "importance": 4,
+      "notes": "机器学习框架",
+      "clickCount": 0,
+      "index": 11,
+      "x": 536.7183677149269,
+      "y": 490.9854829814772,
+      "vy": 0.0001542938178703207,
+      "vx": 0.00005127824084071829
+    }
+  ],
+  "links": [
+    {
+      "source": {
+        "id": 1,
+        "name": "JavaScript",
+        "category": "programming",
+        "importance": 5,
+        "notes": "Web前端开发核心语言",
+        "clickCount": 0,
+        "index": 0,
+        "x": 550.9458486704938,
+        "y": 119.91095395482544,
+        "vy": -0.002241501083335062,
+        "vx": 0.001992542515068835
+      },
+      "target": {
+        "id": 4,
+        "name": "React",
+        "category": "programming",
+        "importance": 5,
+        "notes": "前端UI构建库",
+        "clickCount": 0,
+        "index": 3,
+        "x": 636.1956444581782,
+        "y": 253.8276121061864,
+        "vy": -0.0027946619795702655,
+        "vx": 0.0023087060574970503
+      },
+      "type": "prerequisite",
+      "index": 0
+    },
+    {
+      "source": {
+        "id": 1,
+        "name": "JavaScript",
+        "category": "programming",
+        "importance": 5,
+        "notes": "Web前端开发核心语言",
+        "clickCount": 0,
+        "index": 0,
+        "x": 550.9458486704938,
+        "y": 119.91095395482544,
+        "vy": -0.002241501083335062,
+        "vx": 0.001992542515068835
+      },
+      "target": {
+        "id": 5,
+        "name": "Node.js",
+        "category": "programming",
+        "importance": 4,
+        "notes": "服务端JS运行时",
+        "clickCount": 0,
+        "index": 4,
+        "x": 417.0637262475453,
+        "y": 121.66624498467993,
+        "vy": -0.0040843856809998575,
+        "vx": 0.0018734889364394418
+      },
+      "type": "prerequisite",
+      "index": 1
+    },
+    {
+      "source": {
+        "id": 2,
+        "name": "HTML",
+        "category": "programming",
+        "importance": 4,
+        "notes": "网页结构标记语言",
+        "clickCount": 0,
+        "index": 1,
+        "x": 527.1316082539031,
+        "y": 231.5458239463253,
+        "vy": -0.0022130624188978674,
+        "vx": 0.0022804640496309606,
+        "fx": null,
+        "fy": null
+      },
+      "target": {
+        "id": 4,
+        "name": "React",
+        "category": "programming",
+        "importance": 5,
+        "notes": "前端UI构建库",
+        "clickCount": 0,
+        "index": 3,
+        "x": 636.1956444581782,
+        "y": 253.8276121061864,
+        "vy": -0.0027946619795702655,
+        "vx": 0.0023087060574970503
+      },
+      "type": "prerequisite",
+      "index": 2
+    },
+    {
+      "source": {
+        "id": 3,
+        "name": "CSS",
+        "category": "programming",
+        "importance": 4,
+        "notes": "网页样式描述语言",
+        "clickCount": 0,
+        "index": 2,
+        "x": 662.8516737323109,
+        "y": 146.75849611560463,
+        "vy": -0.002892060091948748,
+        "vx": 0.0022002613377337553,
+        "fx": null,
+        "fy": null
+      },
+      "target": {
+        "id": 4,
+        "name": "React",
+        "category": "programming",
+        "importance": 5,
+        "notes": "前端UI构建库",
+        "clickCount": 0,
+        "index": 3,
+        "x": 636.1956444581782,
+        "y": 253.8276121061864,
+        "vy": -0.0027946619795702655,
+        "vx": 0.0023087060574970503
+      },
+      "type": "prerequisite",
+      "index": 3
+    },
+    {
+      "source": {
+        "id": 1,
+        "name": "JavaScript",
+        "category": "programming",
+        "importance": 5,
+        "notes": "Web前端开发核心语言",
+        "clickCount": 0,
+        "index": 0,
+        "x": 550.9458486704938,
+        "y": 119.91095395482544,
+        "vy": -0.002241501083335062,
+        "vx": 0.001992542515068835
+      },
+      "target": {
+        "id": 2,
+        "name": "HTML",
+        "category": "programming",
+        "importance": 4,
+        "notes": "网页结构标记语言",
+        "clickCount": 0,
+        "index": 1,
+        "x": 527.1316082539031,
+        "y": 231.5458239463253,
+        "vy": -0.0022130624188978674,
+        "vx": 0.0022804640496309606,
+        "fx": null,
+        "fy": null
+      },
+      "type": "related",
+      "index": 4
+    },
+    {
+      "source": {
+        "id": 1,
+        "name": "JavaScript",
+        "category": "programming",
+        "importance": 5,
+        "notes": "Web前端开发核心语言",
+        "clickCount": 0,
+        "index": 0,
+        "x": 550.9458486704938,
+        "y": 119.91095395482544,
+        "vy": -0.002241501083335062,
+        "vx": 0.001992542515068835
+      },
+      "target": {
+        "id": 3,
+        "name": "CSS",
+        "category": "programming",
+        "importance": 4,
+        "notes": "网页样式描述语言",
+        "clickCount": 0,
+        "index": 2,
+        "x": 662.8516737323109,
+        "y": 146.75849611560463,
+        "vy": -0.002892060091948748,
+        "vx": 0.0022002613377337553,
+        "fx": null,
+        "fy": null
+      },
+      "type": "related",
+      "index": 5
+    },
+    {
+      "source": {
+        "id": 2,
+        "name": "HTML",
+        "category": "programming",
+        "importance": 4,
+        "notes": "网页结构标记语言",
+        "clickCount": 0,
+        "index": 1,
+        "x": 527.1316082539031,
+        "y": 231.5458239463253,
+        "vy": -0.0022130624188978674,
+        "vx": 0.0022804640496309606,
+        "fx": null,
+        "fy": null
+      },
+      "target": {
+        "id": 3,
+        "name": "CSS",
+        "category": "programming",
+        "importance": 4,
+        "notes": "网页样式描述语言",
+        "clickCount": 0,
+        "index": 2,
+        "x": 662.8516737323109,
+        "y": 146.75849611560463,
+        "vy": -0.002892060091948748,
+        "vx": 0.0022002613377337553,
+        "fx": null,
+        "fy": null
+      },
+      "type": "related",
+      "index": 6
+    },
+    {
+      "source": {
+        "id": 6,
+        "name": "Python",
+        "category": "datascience",
+        "importance": 5,
+        "notes": "通用编程语言",
+        "clickCount": 0,
+        "index": 5,
+        "x": 306.33844951392643,
+        "y": 315.01721082495925,
+        "vy": 0.0008644570495141863,
+        "vx": -0.00022593966390256967
+      },
+      "target": {
+        "id": 7,
+        "name": "数据分析",
+        "category": "datascience",
+        "importance": 4,
+        "notes": "数据提取与分析",
+        "clickCount": 0,
+        "index": 6,
+        "x": 169.52660754765935,
+        "y": 317.49390376587826,
+        "vy": 0.0017075415341121633,
+        "vx": -0.00004081443573284964
+      },
+      "type": "prerequisite",
+      "index": 7
+    },
+    {
+      "source": {
+        "id": 6,
+        "name": "Python",
+        "category": "datascience",
+        "importance": 5,
+        "notes": "通用编程语言",
+        "clickCount": 0,
+        "index": 5,
+        "x": 306.33844951392643,
+        "y": 315.01721082495925,
+        "vy": 0.0008644570495141863,
+        "vx": -0.00022593966390256967
+      },
+      "target": {
+        "id": 11,
+        "name": "Pandas",
+        "category": "datascience",
+        "importance": 4,
+        "notes": "Python数据分析库",
+        "clickCount": 0,
+        "index": 10,
+        "x": 228.09559494410934,
+        "y": 202.33800734010325,
+        "vy": 0.0014096778119178672,
+        "vx": -0.000606963501870057
+      },
+      "type": "contains",
+      "index": 8
+    },
+    {
+      "source": {
+        "id": 7,
+        "name": "数据分析",
+        "category": "datascience",
+        "importance": 4,
+        "notes": "数据提取与分析",
+        "clickCount": 0,
+        "index": 6,
+        "x": 169.52660754765935,
+        "y": 317.49390376587826,
+        "vy": 0.0017075415341121633,
+        "vx": -0.00004081443573284964
+      },
+      "target": {
+        "id": 11,
+        "name": "Pandas",
+        "category": "datascience",
+        "importance": 4,
+        "notes": "Python数据分析库",
+        "clickCount": 0,
+        "index": 10,
+        "x": 228.09559494410934,
+        "y": 202.33800734010325,
+        "vy": 0.0014096778119178672,
+        "vx": -0.000606963501870057
+      },
+      "type": "prerequisite",
+      "index": 9
+    },
+    {
+      "source": {
+        "id": 6,
+        "name": "Python",
+        "category": "datascience",
+        "importance": 5,
+        "notes": "通用编程语言",
+        "clickCount": 0,
+        "index": 5,
+        "x": 306.33844951392643,
+        "y": 315.01721082495925,
+        "vy": 0.0008644570495141863,
+        "vx": -0.00022593966390256967
+      },
+      "target": {
+        "id": 8,
+        "name": "机器学习",
+        "category": "ai",
+        "importance": 5,
+        "notes": "数据驱动学习",
+        "clickCount": 0,
+        "index": 7,
+        "x": 442.1789849914695,
+        "y": 361.54388163136355,
+        "vy": 0.0003088927362302324,
+        "vx": -0.00029468081125370377
+      },
+      "type": "prerequisite",
+      "index": 10
+    },
+    {
+      "source": {
+        "id": 8,
+        "name": "机器学习",
+        "category": "ai",
+        "importance": 5,
+        "notes": "数据驱动学习",
+        "clickCount": 0,
+        "index": 7,
+        "x": 442.1789849914695,
+        "y": 361.54388163136355,
+        "vy": 0.0003088927362302324,
+        "vx": -0.00029468081125370377
+      },
+      "target": {
+        "id": 9,
+        "name": "深度学习",
+        "category": "ai",
+        "importance": 5,
+        "notes": "基于神经网络",
+        "clickCount": 0,
+        "index": 8,
+        "x": 572.1886293734749,
+        "y": 377.47363096684467,
+        "vy": -0.000058176965968503374,
+        "vx": -0.00032988461994075245
+      },
+      "type": "contains",
+      "index": 11
+    },
+    {
+      "source": {
+        "id": 9,
+        "name": "深度学习",
+        "category": "ai",
+        "importance": 5,
+        "notes": "基于神经网络",
+        "clickCount": 0,
+        "index": 8,
+        "x": 572.1886293734749,
+        "y": 377.47363096684467,
+        "vy": -0.000058176965968503374,
+        "vx": -0.00032988461994075245
+      },
+      "target": {
+        "id": 10,
+        "name": "神经网络",
+        "category": "ai",
+        "importance": 4,
+        "notes": "深度学习基础",
+        "clickCount": 0,
+        "index": 9,
+        "x": 446.77403173964717,
+        "y": 457.4293147577727,
+        "vy": 0.00040236129122550997,
+        "vx": -0.000041270460100531916
+      },
+      "type": "prerequisite",
+      "index": 12
+    },
+    {
+      "source": {
+        "id": 9,
+        "name": "深度学习",
+        "category": "ai",
+        "importance": 5,
+        "notes": "基于神经网络",
+        "clickCount": 0,
+        "index": 8,
+        "x": 572.1886293734749,
+        "y": 377.47363096684467,
+        "vy": -0.000058176965968503374,
+        "vx": -0.00032988461994075245
+      },
+      "target": {
+        "id": 12,
+        "name": "TensorFlow",
+        "category": "ai",
+        "importance": 4,
+        "notes": "机器学习框架",
+        "clickCount": 0,
+        "index": 11,
+        "x": 536.7183677149269,
+        "y": 490.9854829814772,
+        "vy": 0.0001542938178703207,
+        "vx": 0.00005127824084071829
+      },
+      "type": "related",
+      "index": 13
+    },
+    {
+      "source": {
+        "id": 8,
+        "name": "机器学习",
+        "category": "ai",
+        "importance": 5,
+        "notes": "数据驱动学习",
+        "clickCount": 0,
+        "index": 7,
+        "x": 442.1789849914695,
+        "y": 361.54388163136355,
+        "vy": 0.0003088927362302324,
+        "vx": -0.00029468081125370377
+      },
+      "target": {
+        "id": 12,
+        "name": "TensorFlow",
+        "category": "ai",
+        "importance": 4,
+        "notes": "机器学习框架",
+        "clickCount": 0,
+        "index": 11,
+        "x": 536.7183677149269,
+        "y": 490.9854829814772,
+        "vy": 0.0001542938178703207,
+        "vx": 0.00005127824084071829
+      },
+      "type": "related",
+      "index": 14
+    }
+  ]
+}
