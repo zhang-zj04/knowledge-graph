@@ -142,6 +142,24 @@
       opacity: 0.3;
       cursor: not-allowed;
     }
+    /* 小地图样式 */
+    #minimap {
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+    #minimap.collapsed {
+      height: 32px !important;
+    }
+    #minimap.collapsed canvas {
+      display: none;
+    }
+    #minimapViewport {
+      position: absolute;
+      border: 2px solid #3b82f6;
+      background: rgba(59, 130, 246, 0.1);
+      pointer-events: none;
+      z-index: 1;
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-dark overflow-hidden h-screen flex flex-col">
@@ -253,6 +271,16 @@
         </div>
       </div>
       <svg id="knowledgeGraph" class="w-full h-full"></svg>
+
+      <!-- 小地图 -->
+      <div id="minimap" class="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg border border-gray-200 z-10" style="width:200px;height:150px;">
+        <div class="flex items-center justify-between px-2 py-1 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+          <span class="text-xs font-medium text-gray-600">导航地图</span>
+          <button id="minimapToggle" class="text-xs text-gray-400 hover:text-gray-600"><i class="fa fa-chevron-down"></i></button>
+        </div>
+        <canvas id="minimapCanvas" width="200" height="120" style="width:100%;height:120px;cursor:pointer;"></canvas>
+        <div id="minimapViewport" class="absolute border-2 border-primary pointer-events:none;display:none;"></div>
+      </div>
     </div>
 
     <!-- 节点详情 -->
@@ -287,7 +315,17 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">学习笔记</label>
-          <textarea id="nodeNotes" rows="6" class="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none resize-none"></textarea>
+          <div class="border border-gray-300 rounded-lg overflow-hidden">
+            <div class="flex items-center gap-1 p-2 border-b border-gray-200 bg-gray-50">
+              <button type="button" class="rich-btn px-2 py-1 rounded hover:bg-gray-200" data-cmd="bold" title="粗体"><i class="fa fa-bold text-sm"></i></button>
+              <button type="button" class="rich-btn px-2 py-1 rounded hover:bg-gray-200" data-cmd="italic" title="斜体"><i class="fa fa-italic text-sm"></i></button>
+              <button type="button" class="rich-btn px-2 py-1 rounded hover:bg-gray-200" data-cmd="underline" title="下划线"><i class="fa fa-underline text-sm"></i></button>
+              <span class="w-px h-4 bg-gray-300 mx-1"></span>
+              <button type="button" class="rich-btn px-2 py-1 rounded hover:bg-gray-200" data-cmd="insertImage" title="插入图片"><i class="fa fa-image text-sm"></i></button>
+            </div>
+            <div id="richEditor" class="min-h-[120px] p-3 outline-none" contenteditable="true" style="max-height:300px;overflow-y:auto;"></div>
+          </div>
+          <input type="file" id="richImageInput" accept="image/*" style="display:none;">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">学习笔记图片</label>
@@ -543,6 +581,8 @@
     const CLICK_THRESHOLD = 8;
     let lightboxNode = null;
     let lightboxIndex = 0;
+    let zoom; // 缩放行为
+    let currentTransform = d3.zoomIdentity; // 当前缩放状态
 
     // ========== IndexedDB 图片存储 ==========
     const IDB_NAME = 'knowledgeGraphImages';
@@ -657,6 +697,23 @@
       });
     }
 
+    // ========== XSS 防护 ==========
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return str;
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ========== 防抖函数 ==========
+    function debounce(fn, delay) {
+      let timer = null;
+      return function(...args) {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+      };
+    }
+
     // DOM快捷获取
     const $ = id => document.getElementById(id);
     const dom = {
@@ -760,9 +817,17 @@
             canvas.height = h;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, w, h);
-            resolve(canvas.toDataURL('image/jpeg', quality));
+            // 使用 toBlob() 替代 toDataURL()
+            canvas.toBlob(blob => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                // 降级：toBlob 失败时返回原文件
+                resolve(file);
+              }
+            }, 'image/jpeg', quality);
           };
-          img.onerror = () => resolve(ev.target.result); // 压缩失败则返回原图
+          img.onerror = () => resolve(file);
           img.src = ev.target.result;
         };
         reader.onerror = () => resolve(null);
@@ -801,129 +866,226 @@
     }
 
     // ========== 图谱渲染 + 核心拖拽联动 ==========
-    // ========== 图谱渲染 + 核心拖拽联动 ==========
-function renderGraph() {
-  d3.select("#knowledgeGraph").selectAll("*").remove();
-  const hh = 60, nh = 60;
-  const w = window.innerWidth;
-  const h = window.innerHeight - hh - nh;
-
-  svg = d3.select("#knowledgeGraph").attr("width", w).attr("height", h);
-  
-  // ====================== 新增：缩放 + 平移 ======================
-  const zoom = d3.zoom()
-    .scaleExtent([0.2, 3]) // 最小/最大缩放
-    .on("zoom", (event) => {
-      g.attr("transform", event.transform);
-    });
-
-  svg.call(zoom); // 绑定到画布
-  // ==============================================================
-
-  g = svg.append("g"); // 所有节点连线放在这个分组里
-
-  // 箭头标记
-  svg.append("defs").selectAll("marker")
-    .data(["contains", "prerequisite", "related"])
-    .enter().append("marker")
-    .attr("id", d => `arrow_${d}`)
-    .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 32).attr("refY", 0)
-    .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
-    .append("path")
-    .attr("d", "M0,-5L10,0L0,5")
-    .attr("fill", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d]));
-
-  // 【标准力导向配置：保证拖拽联动】
-  linkForce = d3.forceLink(currentData.links)
-    .id(d => d.id)
-    .distance(130)
-    .strength(1.0);
-
-  simulation = d3.forceSimulation(currentData.nodes)
-    .force("link", linkForce)
-    .force("charge", d3.forceManyBody().strength(-120))
-    .force("center", d3.forceCenter(w / 2, h / 2))
-    .force("collision", d3.forceCollide().radius(48))
-    .velocityDecay(0.45);
-
-  // 绘制连线
-  link = g.append("g").selectAll("line")
-    .data(currentData.links)
-    .enter().append("line")
-    .attr("stroke", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d.type]))
-    .attr("stroke-width", 2)
-    .attr("marker-end", d => `url(#arrow_${d.type})`);
-
-  // 绘制连线标签（简略文字）
-  const typeShortMap = { contains: "包含", prerequisite: "前置", related: "相关" };
-  const linkLabel = g.append("g").selectAll("text")
-    .data(currentData.links)
-    .enter().append("text")
-    .attr("font-size", "10px")
-    .attr("font-weight", "600")
-    .attr("fill", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d.type]))
-    .attr("text-anchor", "middle")
-    .attr("dy", "-4")
-    .style("pointer-events", "none")
-    .style("text-shadow", "0 1px 2px rgba(255,255,255,0.9), 0 -1px 2px rgba(255,255,255,0.9), 1px 0 2px rgba(255,255,255,0.9), -1px 0 2px rgba(255,255,255,0.9)")
-    .text(d => typeShortMap[d.type] || d.type);
-
-  // 绘制节点
-  node = g.append("g").selectAll(".node")
-    .data(currentData.nodes)
-    .enter().append("g")
-    .attr("class", "node");
-
-  node.append("circle")
-    .attr("r", d => 18 + d.importance * 2)
-    .attr("fill", d => getCategoryColor(d.category))
-    .attr("stroke", d => getNodeStroke(d.clickCount))
-    .attr("stroke-width", 3)
-    .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0.1))");
-
-  node.append("text")
-    .attr("dy", 35).attr("text-anchor", "middle")
-    .attr("font-size", "11px").attr("fill", "#334155")
-    .text(d => d.name.length > 6 ? d.name.slice(0, 6) + "..." : d.name);
-
-  // 鼠标按下记录坐标（区分点击/拖拽）
-  node.on("mousedown", (e, d) => {
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-  });
-
-  // 【原生D3拖拽：标准联动逻辑】
-  const dragBehavior = d3.drag()
-    .on("start", dragStarted)
-    .on("drag", dragged)
-    .on("end", dragEnded);
-  node.call(dragBehavior);
-
-  // 纯点击事件（打开详情）
-  node.on("click", (e, d) => {
-    const dx = Math.abs(e.clientX - dragStartX);
-    const dy = Math.abs(e.clientY - dragStartY);
-    if (dx < CLICK_THRESHOLD && dy < CLICK_THRESHOLD) {
-      openNodePanel(d);
+    let graphInitialized = false;
+    
+    function renderGraph() {
+      const hh = 60, nh = 60;
+      const w = window.innerWidth;
+      const h = window.innerHeight - hh - nh;
+      
+      if (!graphInitialized) {
+        // 首次初始化：创建 SVG、缩放、分组、箭头标记、力模拟
+        initGraph(w, h);
+        graphInitialized = true;
+      } else {
+        // 增量更新：只更新数据和力模拟
+        updateGraph(w, h);
+      }
+      
+      updateEmptyState();
+      // 更新小地图
+      if (minimapInitialized) {
+        updateMinimap();
+      }
     }
-  });
-
-  // 帧渲染（稳定连线，杜绝错乱）
-  simulation.on("tick", () => {
-    link
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
-    linkLabel
-      .attr("x", d => (d.source.x + d.target.x) / 2)
-      .attr("y", d => (d.source.y + d.target.y) / 2);
-    node.attr("transform", d => `translate(${d.x},${d.y})`);
-  });
-
-  updateEmptyState();
-}
+    
+    function initGraph(w, h) {
+      svg = d3.select("#knowledgeGraph").attr("width", w).attr("height", h);
+      
+      // 缩放 + 平移
+      zoom = d3.zoom()
+        .scaleExtent([0.2, 3])
+        .on("zoom", (event) => {
+          currentTransform = event.transform;
+          g.attr("transform", event.transform);
+          updateMinimapViewport();
+        });
+      
+      svg.call(zoom);
+      
+      g = svg.append("g");
+      
+      // 箭头标记（只创建一次）
+      svg.append("defs").selectAll("marker")
+        .data(["contains", "prerequisite", "related"])
+        .enter().append("marker")
+        .attr("id", d => `arrow_${d}`)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 32).attr("refY", 0)
+        .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d]));
+      
+      // 力模拟
+      linkForce = d3.forceLink(currentData.links)
+        .id(d => d.id)
+        .distance(130)
+        .strength(1.0);
+      
+      simulation = d3.forceSimulation(currentData.nodes)
+        .force("link", linkForce)
+        .force("charge", d3.forceManyBody().strength(-120))
+        .force("center", d3.forceCenter(w / 2, h / 2))
+        .force("collision", d3.forceCollide().radius(48))
+        .velocityDecay(0.45);
+      
+      // 绘制连线
+      link = g.append("g").selectAll("line")
+        .data(currentData.links)
+        .enter().append("line")
+        .attr("stroke", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d.type]))
+        .attr("stroke-width", 2)
+        .attr("marker-end", d => `url(#arrow_${d.type})`);
+      
+      // 绘制连线标签
+      const typeShortMap = { contains: "包含", prerequisite: "前置", related: "相关" };
+      g.append("g").selectAll("text")
+        .data(currentData.links)
+        .enter().append("text")
+        .attr("font-size", "10px")
+        .attr("font-weight", "600")
+        .attr("fill", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d.type]))
+        .attr("text-anchor", "middle")
+        .attr("dy", "-4")
+        .style("pointer-events", "none")
+        .style("text-shadow", "0 1px 2px rgba(255,255,255,0.9), 0 -1px 2px rgba(255,255,255,0.9), 1px 0 2px rgba(255,255,255,0.9), -1px 0 2px rgba(255,255,255,0.9)")
+        .text(d => typeShortMap[d.type] || d.type);
+      
+      // 绘制节点
+      node = g.append("g").selectAll(".node")
+        .data(currentData.nodes)
+        .enter().append("g")
+        .attr("class", "node");
+      
+      node.append("circle")
+        .attr("r", d => 18 + d.importance * 2)
+        .attr("fill", d => getCategoryColor(d.category))
+        .attr("stroke", d => getNodeStroke(d.clickCount))
+        .attr("stroke-width", 3)
+        .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0.1))");
+      
+      node.append("text")
+        .attr("dy", 35).attr("text-anchor", "middle")
+        .attr("font-size", "11px").attr("fill", "#334155")
+        .text(d => d.name.length > 6 ? d.name.slice(0, 6) + "..." : d.name);
+      
+      // 事件绑定（只在初始化时绑定一次）
+      bindNodeEvents();
+      
+      // 帧渲染
+      simulation.on("tick", ticked);
+      
+      // 初始化小地图
+      initMinimap();
+    }
+    
+    function updateGraph(w, h) {
+      // 更新 SVG 尺寸
+      svg.attr("width", w).attr("height", h);
+      
+      // 更新力模拟中心
+      simulation.force("center", d3.forceCenter(w / 2, h / 2));
+      
+      // 更新力模拟数据
+      simulation.nodes(currentData.nodes);
+      simulation.force("link").links(currentData.links);
+      
+      // 更新连线
+      const links = g.selectAll("line").data(currentData.links);
+      links.exit().remove();
+      const linksEnter = links.enter().append("line")
+        .attr("stroke", d => ({ contains: "#3b82f6", prerequisite: "#8b5cf6", related: "#10b981" }[d.type]))
+        .attr("stroke-width", 2)
+        .attr("marker-end", d => `url(#arrow_${d.type})`);
+      links.merge(linksEnter);
+      
+      // 更新连线标签
+      const linkLabels = g.selectAll("text").filter(function(d) { return d && d.source && d.target; });
+      linkLabels.data(currentData.links);
+      
+      // 更新节点
+      const nodes = g.selectAll(".node").data(currentData.nodes);
+      nodes.exit().remove();
+      const nodesEnter = nodes.enter().append("g").attr("class", "node");
+      nodesEnter.append("circle")
+        .attr("r", d => 18 + d.importance * 2)
+        .attr("fill", d => getCategoryColor(d.category))
+        .attr("stroke", d => getNodeStroke(d.clickCount))
+        .attr("stroke-width", 3)
+        .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0.1))");
+      nodesEnter.append("text")
+        .attr("dy", 35).attr("text-anchor", "middle")
+        .attr("font-size", "11px").attr("fill", "#334155")
+        .text(d => d.name.length > 6 ? d.name.slice(0, 6) + "..." : d.name);
+      
+      // 合并 enter 和 update，更新现有节点的样式
+      const allNodes = nodesEnter.merge(nodes);
+      allNodes.select("circle")
+        .attr("r", d => 18 + d.importance * 2)
+        .attr("fill", d => getCategoryColor(d.category))
+        .attr("stroke", d => getNodeStroke(d.clickCount));
+      allNodes.select("text")
+        .text(d => d.name.length > 6 ? d.name.slice(0, 6) + "..." : d.name);
+      
+      // 更新全局 node 引用
+      node = allNodes;
+      link = g.selectAll("line");
+      
+      // 重启力模拟
+      simulation.alpha(0.3).restart();
+    }
+    
+    function bindNodeEvents() {
+      // 鼠标按下记录坐标
+      node.on("mousedown", (e, d) => {
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+      });
+      
+      // 拖拽
+      const dragBehavior = d3.drag()
+        .on("start", dragStarted)
+        .on("drag", dragged)
+        .on("end", dragEnded);
+      node.call(dragBehavior);
+      
+      // 点击
+      node.on("click", (e, d) => {
+        const dx = Math.abs(e.clientX - dragStartX);
+        const dy = Math.abs(e.clientY - dragStartY);
+        if (dx < CLICK_THRESHOLD && dy < CLICK_THRESHOLD) {
+          openNodePanel(d);
+        }
+      });
+    }
+    
+    function ticked() {
+      // 更新连线
+      g.selectAll("line")
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+      
+      // 更新连线标签（只选择文字标签，不包括节点文字）
+      g.selectAll("text").filter(function(d) { 
+        return d && d.source && d.source.x !== undefined; 
+      })
+        .attr("x", d => (d.source.x + d.target.x) / 2)
+        .attr("y", d => (d.source.y + d.target.y) / 2);
+      
+      // 更新节点位置
+      if (node) {
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+      }
+      
+      // 更新小地图
+      if (minimapInitialized) {
+        updateMinimap();
+        updateMinimapViewport();
+      }
+    }
 
     // ========== 标准拖拽联动（核心修复：关联节点强制跟随） ==========
     function dragStarted(e, d) {
@@ -942,6 +1104,187 @@ function renderGraph() {
       d.fy = null;
       // 松手后轻微布局回弹，保持美观
       simulation.alpha(0.2).restart();
+    }
+
+    // ========== 小地图功能 ==========
+    let minimapInitialized = false;
+    function initMinimap() {
+      if (minimapInitialized) return;
+      const canvas = document.getElementById('minimapCanvas');
+      const ctx = canvas.getContext('2d');
+      const toggleBtn = document.getElementById('minimapToggle');
+
+      // 小地图点击事件：点击后跳转到对应位置
+      canvas.addEventListener('click', (e) => {
+        if (!simulation || !zoom) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const bounds = getGraphBounds();
+        const width = bounds.maxX - bounds.minX;
+        const height = bounds.maxY - bounds.minY;
+        if (width <= 0 || height <= 0) return;
+        
+        // 计算点击位置对应的图谱坐标
+        const targetX = bounds.minX + (x / canvas.width) * width;
+        const targetY = bounds.minY + (y / canvas.height) * height;
+
+        // 跳转到对应位置（使用当前缩放比例或默认比例）
+        const svgEl = document.getElementById('knowledgeGraph');
+        const w = svgEl.clientWidth;
+        const h = svgEl.clientHeight;
+        const currentScale = currentTransform ? currentTransform.k : 1;
+        const newTransform = d3.zoomIdentity
+          .translate(w/2 - targetX * currentScale, h/2 - targetY * currentScale)
+          .scale(currentScale);
+        svg.transition().duration(500).call(zoom.transform, newTransform);
+      });
+
+      // 小地图折叠/展开
+      toggleBtn.addEventListener('click', () => {
+        const minimap = document.getElementById('minimap');
+        minimap.classList.toggle('collapsed');
+        toggleBtn.querySelector('i').classList.toggle('fa-chevron-down');
+        toggleBtn.querySelector('i').classList.toggle('fa-chevron-up');
+      });
+
+      minimapInitialized = true;
+    }
+
+    function getGraphBounds() {
+      if (!currentData.nodes || currentData.nodes.length === 0) {
+        const svgEl = document.getElementById('knowledgeGraph');
+        const w = svgEl ? svgEl.clientWidth : 800;
+        const h = svgEl ? svgEl.clientHeight : 600;
+        return { minX: 0, minY: 0, maxX: w, maxY: h };
+      }
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      currentData.nodes.forEach(n => {
+        const x = n.x || 0;
+        const y = n.y || 0;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      });
+      // 如果所有节点的坐标都是 0 或 undefined，返回默认边界
+      if (minX === Infinity || maxX === -Infinity) {
+        const svgEl = document.getElementById('knowledgeGraph');
+        const w = svgEl ? svgEl.clientWidth : 800;
+        const h = svgEl ? svgEl.clientHeight : 600;
+        return { minX: 0, minY: 0, maxX: w, maxY: h };
+      }
+      // 添加边距
+      const padding = 50;
+      return {
+        minX: minX - padding,
+        minY: minY - padding,
+        maxX: maxX + padding,
+        maxY: maxY + padding
+      };
+    }
+
+    function updateMinimap() {
+      if (!minimapInitialized) initMinimap();
+      const canvas = document.getElementById('minimapCanvas');
+      const ctx = canvas.getContext('2d');
+      const bounds = getGraphBounds();
+      const width = bounds.maxX - bounds.minX;
+      const height = bounds.maxY - bounds.minY;
+
+      // 清空画布
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (currentData.nodes.length === 0) return;
+
+      // 绘制连线
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1;
+      currentData.links.forEach(l => {
+        const s = typeof l.source === 'object' ? l.source : currentData.nodes.find(n => n.id === l.source);
+        const t = typeof l.target === 'object' ? l.target : currentData.nodes.find(n => n.id === l.target);
+        if (!s || !t) return;
+        const x1 = (s.x - bounds.minX) / width * canvas.width;
+        const y1 = (s.y - bounds.minY) / height * canvas.height;
+        const x2 = (t.x - bounds.minX) / width * canvas.width;
+        const y2 = (t.y - bounds.minY) / height * canvas.height;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      });
+
+      // 绘制节点
+      currentData.nodes.forEach(n => {
+        const x = (n.x - bounds.minX) / width * canvas.width;
+        const y = (n.y - bounds.minY) / height * canvas.height;
+        ctx.fillStyle = getCategoryColor(n.category);
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function updateMinimapViewport() {
+      if (!svg || !currentTransform) return;
+      const viewport = document.getElementById('minimapViewport');
+      const canvas = document.getElementById('minimapCanvas');
+      const bounds = getGraphBounds();
+      const width = bounds.maxX - bounds.minX;
+      const height = bounds.maxY - bounds.minY;
+      if (width <= 0 || height <= 0) return;
+
+      // 计算当前视口在小地图中的位置
+      const svgEl = document.getElementById('knowledgeGraph');
+      const w = svgEl.clientWidth;
+      const h = svgEl.clientHeight;
+
+      // 视口左上角在图谱坐标中的位置
+      const viewX = -currentTransform.x / currentTransform.k;
+      const viewY = -currentTransform.y / currentTransform.k;
+      const viewW = w / currentTransform.k;
+      const viewH = h / currentTransform.k;
+
+      // 转换为小地图坐标
+      const scaleX = canvas.width / width;
+      const scaleY = canvas.height / height;
+      const minimapX = (viewX - bounds.minX) * scaleX;
+      const minimapY = (viewY - bounds.minY) * scaleY;
+      const minimapW = viewW * scaleX;
+      const minimapH = viewH * scaleY;
+
+      // 设置视口指示器（相对于小地图容器，需加上标题栏高度32px）
+      viewport.style.display = 'block';
+      const titleHeight = 32;
+      const vx = Math.max(0, minimapX);
+      const vy = Math.max(0, minimapY) + titleHeight;
+      viewport.style.left = vx + 'px';
+      viewport.style.top = vy + 'px';
+      viewport.style.width = Math.min(canvas.width - vx, minimapW) + 'px';
+      viewport.style.height = Math.min(canvas.height - minimapY, minimapH) + 'px';
+      viewport.style.position = 'absolute';
+      viewport.style.pointerEvents = 'none';
+      viewport.style.border = '2px solid #3b82f6';
+      viewport.style.background = 'rgba(59, 130, 246, 0.1)';
+      viewport.style.zIndex = '1';
+    }
+
+    // ========== 节点聚焦功能 ==========
+    function focusOnNode(d) {
+      if (!simulation || !zoom) return;
+      // 如果节点坐标还未计算（力模拟未完成），等待一段时间后重试
+      if (d.x === undefined || d.y === undefined) {
+        setTimeout(() => focusOnNode(d), 300);
+        return;
+      }
+      const svgEl = document.getElementById('knowledgeGraph');
+      const w = svgEl.clientWidth;
+      const h = svgEl.clientHeight;
+      const scale = 1.5; // 聚焦时的缩放比例
+      const newTransform = d3.zoomIdentity
+        .translate(w / 2 - d.x * scale, h / 2 - d.y * scale)
+        .scale(scale);
+      svg.transition().duration(500).call(zoom.transform, newTransform);
     }
 
     // ========== 节点详情面板 ==========
@@ -966,7 +1309,9 @@ function renderGraph() {
       dom.nodeName.value = d.name;
       dom.nodeCategory.value = d.category;
       dom.nodeClickCount.textContent = `${d.clickCount} 次`;
-      dom.nodeNotes.value = d.notes || "";
+      // 加载富文本笔记
+      const richEditor = document.getElementById('richEditor');
+      if (richEditor) richEditor.innerHTML = d.notes || "";
       renderNodeImages(d);
 
       // 星级
@@ -976,6 +1321,8 @@ function renderGraph() {
       });
       renderRelatedList(d);
       dom.nodeDetails.classList.remove("translate-x-full");
+      // 自动聚焦到当前节点
+      setTimeout(() => focusOnNode(d), 100);
     }
     function closeNodePanel() {
       dom.nodeDetails.classList.add("translate-x-full");
@@ -1006,8 +1353,8 @@ function renderGraph() {
         div.className = "flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100";
         div.innerHTML = `
           <div class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
-            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${getCategoryColor(relateNode.category)}"></span>
-            <span>${relateNode.name}</span>
+            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${escapeHtml(getCategoryColor(relateNode.category))}"></span>
+            <span>${escapeHtml(relateNode.name)}</span>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <span class="text-xs bg-gray-200 px-2 py-0.5 rounded">${typeMap[l.type]}</span>
@@ -1186,10 +1533,9 @@ function renderGraph() {
           processed++;
           return;
         }
-        compressImage(file, 1200, 0.7).then(dataUrl => {
-          if (!dataUrl || !selectedNode) { failed++; processed++; return; }
-          // 转为 Blob 存入 IndexedDB
-          const blob = dataUrlToBlob(dataUrl);
+        compressImage(file, 1200, 0.7).then(blob => {
+          if (!blob || !selectedNode) { failed++; processed++; return; }
+          // Blob 直接存入 IndexedDB
           const imgId = Date.now() + Math.random().toString(36).slice(2);
           idbSaveImage(imgId, blob).then(() => {
             if (!selectedNode) { failed++; processed++; return; }
@@ -1296,12 +1642,12 @@ function renderGraph() {
         div.className = "flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 cursor-pointer";
         div.innerHTML = `
           <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full" style="background:${cat.color}"></span>
-            <span>${cat.name}</span>
+            <span class="w-3 h-3 rounded-full" style="background:${escapeHtml(cat.color)}"></span>
+            <span>${escapeHtml(cat.name)}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-xs bg-gray-200 px-2 py-0.5 rounded">${cnt}</span>
-            ${cat.id !== "other" ? `<button class="delCat w-6 h-6 text-gray-400 hover:text-danger" data-catid="${cat.id}"><i class="fa fa-trash-o"></i></button>` : ""}
+            ${cat.id !== "other" ? `<button class="delCat w-6 h-6 text-gray-400 hover:text-danger" data-catid="${escapeHtml(cat.id)}"><i class="fa fa-trash-o"></i></button>` : ""}
         `;
         dom.categoriesList.appendChild(div);
       });
@@ -1348,8 +1694,8 @@ function renderGraph() {
         div.className = "p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100";
         div.innerHTML = `
           <div class="flex items-center gap-2 mb-1">
-            <span class="w-2 h-2 rounded-full" style="background:${getCategoryColor(n.category)}"></span>
-            <span class="font-medium">${n.name}</span>
+            <span class="w-2 h-2 rounded-full" style="background:${escapeHtml(getCategoryColor(n.category))}"></span>
+            <span class="font-medium">${escapeHtml(n.name)}</span>
           </div>
           <div class="text-xs text-gray-500 flex justify-between">
             <span>${n.importance}星</span>
@@ -1397,7 +1743,9 @@ function renderGraph() {
       if (!selectedNode) return;
       selectedNode.name = dom.nodeName.value.trim();
       selectedNode.category = dom.nodeCategory.value;
-      selectedNode.notes = dom.nodeNotes.value.trim();
+      // 保存富文本笔记
+      const richEditor = document.getElementById('richEditor');
+      selectedNode.notes = richEditor ? richEditor.innerHTML : "";
       let imp = 0;
       dom.importanceStars.querySelectorAll("i").forEach((s, idx) => { if (s.classList.contains("fa-star")) imp = idx + 1; });
       selectedNode.importance = imp;
@@ -1766,16 +2114,20 @@ function renderGraph() {
       dom.menuBtn.onclick = openSidebar;
       dom.closeSidebar.onclick = closeSidebar;
       dom.overlay.onclick = closeSidebar;
-      // 搜索
+      // 搜索（带防抖）
       dom.searchBtn.onclick = openSearch;
       dom.closeSearch.onclick = closeSearch;
-      dom.searchInput.oninput = e => {
+      dom.searchInput.oninput = debounce(e => {
         const kw = e.target.value.toLowerCase();
-        if (!kw) { node.select("*").style("opacity", 1); link.style("opacity", 1); return; }
+        if (!kw) { node.selectAll("*").style("opacity", 1); link.style("opacity", 1); return; }
         const match = currentData.nodes.filter(n => n.name.toLowerCase().includes(kw));
-        node.select("*").style("opacity", d => match.some(x => x.id === d.id) ? 1 : 0.2);
-        link.style("opacity", d => match.some(x => x.id === d.source) && match.some(x => x.id === d.target) ? 1 : 0.1);
-      };
+        node.selectAll(".node").style("opacity", d => match.some(x => x.id === d.id) ? 1 : 0.2);
+        link.style("opacity", d => {
+          const sId = typeof d.source === 'object' ? d.source.id : d.source;
+          const tId = typeof d.target === 'object' ? d.target.id : d.target;
+          return match.some(x => x.id === sId) && match.some(x => x.id === tId) ? 1 : 0.1;
+        });
+      }, 300);
       // 添加节点
       dom.addNodeBtn.onclick = openAddNode;
       dom.cancelAdd.onclick = closeAddNode;
@@ -1832,6 +2184,37 @@ function renderGraph() {
       dom.confirmImport.onclick = confirmImport;
       // 窗口缩放
       window.onresize = () => { if (simulation) simulation.stop(); renderGraph(); };
+      // 富文本编辑器
+      const richEditor = document.getElementById('richEditor');
+      const richImageInput = document.getElementById('richImageInput');
+      // 工具栏按钮点击事件
+      document.querySelectorAll('.rich-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cmd = btn.dataset.cmd;
+          if (cmd === 'insertImage') {
+            richImageInput.click();
+          } else {
+            document.execCommand(cmd, false, null);
+            richEditor.focus();
+          }
+        });
+      });
+      // 富文本编辑器图片上传
+      richImageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          const img = document.createElement('img');
+          img.src = ev.target.result;
+          img.style.maxWidth = '100%';
+          img.style.height = 'auto';
+          img.alt = '笔记图片';
+          richEditor.appendChild(img);
+          richImageInput.value = '';
+        };
+        reader.readAsDataURL(file);
+      });
       // 禁止双击缩放
       document.addEventListener("dblclick", e => e.preventDefault(), { passive: false });
     }
@@ -1927,6 +2310,14 @@ function renderGraph() {
       renderCategoryList();
       renderRecentList();
       bindAllEvents();
+    });
+
+    // ========== 页面卸载时清理 Object URL ==========
+    window.addEventListener('beforeunload', () => {
+      blobUrlCache.forEach((url, id) => {
+        URL.revokeObjectURL(url);
+      });
+      blobUrlCache.clear();
     });
   </script>
 </body>
