@@ -1,0 +1,22 @@
+# 忽略 IDE 配置文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 忽略临时文件
+*.log
+*.tmp
+*.cache
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db
+
+# 忽略 node_modules (如果有)
+node_modules/
+
+# 忽略构建输出 (如果有)
+dist/
+build/
